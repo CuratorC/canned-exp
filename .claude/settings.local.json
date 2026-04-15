@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -N http://localhost:3100/sse --max-time 3)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "mcp__canned-exp__save_experience",
+      "mcp__canned-exp__search_experiences",
+      "mcp__canned-exp__update_experience",
+      "mcp__zai-mcp-server__analyze_image",
+      "Bash(sed -i '/Name: \"save_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    false,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
+      "Bash(sed -i '/Name: \"search_experiences\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    true,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
+      "Bash(sed -i '/Name:        \"get_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    true,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
+      "Bash(sed -i '/Name:        \"update_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    false,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
+      "Bash(sed -i '/Name:        \"delete_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    false,\\\\n\\\\t\\\\t\\\\tDestructive: true,' internal/experience/mcp/server.go)"
+    ],
+    "additionalDirectories": [
+      "/home/curatorc/GolandProjects/canned-exp/.claude",
+      "/home/curatorc"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/curatorc/GolandProjects/canned-exp/.claude/hooks/recall-experience.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "canned-exp": {
+      "url": "http://localhost:3100/sse"
+    }
+  }
+}
