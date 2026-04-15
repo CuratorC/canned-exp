@@ -1,6 +1,7 @@
 .env
 .idea
 .vscode
+bin/
 *.exe
 *.exe~
 *.dll
@@ -10,4 +11,3 @@
 *.out
 vendor/
 storage/logs/
-.env
