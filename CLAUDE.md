@@ -101,7 +101,9 @@ Client (Claude Code / Hook / curl)
 
 ### Memory Priority
 
-经验库 > 上下文记忆。在做设计决策前，先检索经验库中是否有过往教训。
+**MUST** 在开始做任何事之前，**先调用 `search_experiences`** 检索相关经验。禁止仅凭文件记忆作答而跳过 MCP 经验库检索。经验库是唯一的权威知识源，文件记忆仅作为补充线索。
+
+经验库是唯一的权威知识源，文件记忆仅作为补充线索。
 
 ### When to Search
 

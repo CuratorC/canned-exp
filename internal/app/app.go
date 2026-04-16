@@ -4,7 +4,8 @@
 package app
 
 import (
-	"canned-exp/internal/experience"
+	"canned-exp/internal/auth"
+	"canned-exp/internal/service"
 
 	"github.com/CuratorC/gocanned/database"
 )
@@ -12,6 +13,7 @@ import (
 // App holds all application-level dependencies, assembled by bootstrap
 // and passed explicitly to the layers that need them.
 type App struct {
-	DB               *database.DB
-	ExperienceService *experience.Service
+	DB                *database.DB
+	ExperienceService *service.ExperienceService
+	Auth              *auth.Auth
 }

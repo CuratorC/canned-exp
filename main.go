@@ -3,10 +3,12 @@ package main
 import (
 	"canned-exp/bootstrap"
 	"canned-exp/cmd"
+	"canned-exp/internal/enum"
 	"fmt"
 	"os"
 
 	ccmd "github.com/CuratorC/gocanned/cmd"
+	"github.com/CuratorC/gocanned/database"
 	"github.com/CuratorC/gocanned/logger"
 	"github.com/spf13/cobra"
 )
@@ -29,12 +31,28 @@ func main() {
 		},
 	}
 
+	// migrate 命令需要独立的数据库初始化（不走 NewApp）
+	// PersistentPreRun 会覆盖父命令的，所以要先调基础 setup
+	migrateCmd := ccmd.CmdMigrate()
+	migrateCmd.PersistentPreRun = func(command *cobra.Command, args []string) {
+		if err := bootstrap.SetupCommand(ccmd.Env); err != nil {
+			fmt.Fprintln(os.Stderr, "failed to setup app:", err)
+			os.Exit(1)
+		}
+		db, err := bootstrap.SetupDatabase(enum.DatabaseNameMain)
+		if err != nil {
+			logger.ErrorAndExit("failed to setup database", err)
+		}
+		ccmd.SetGetDBFunc(func(dbName string) *database.DB {
+			return db
+		})
+	}
+
 	// 注册子命令
 	rootCmd.AddCommand(
 		ccmd.CmdInitConfig(),
-		ccmd.CmdMigrate(),
+		migrateCmd,
 		cmd.StartServe,
-		cmd.McpCmd(),
 	)
 
 	// 配置默认运行 Web 服务

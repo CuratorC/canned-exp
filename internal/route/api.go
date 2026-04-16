@@ -1,34 +1,40 @@
 package route
 
 import (
+	"canned-exp/internal/app"
+	expctrl "canned-exp/internal/mcp/controller"
+	mcpgw "canned-exp/internal/mcp"
+	httpctrl "canned-exp/internal/http/controller"
 	middlewares "canned-exp/internal/http/middleware"
 
-	"canned-exp/internal/app"
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterAPIRoutes 注册 API 相关路由
+// RegisterAPIRoutes 注册所有 API 路由（Web + MCP + Auth）
 func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 
 	r.GET("health-check", func(c *gin.Context) {
 		c.JSON(200, gin.H{})
 	})
 
-	// v1 的路由组，所有的 v1 版本的路由都将存放到这里
-	v1 := r.Group("/v1")
+	// 免认证路由
+	r.GET("/api/auth/guide", httpctrl.GuideHandler())
+	r.POST("/api/auth/login", httpctrl.LoginHandler(application.Auth))
 
-	// 全局限流中间件：每小时限流。这里是所有 API （根据 IP）请求加起来。
-	// 作为参考 Github API 每小时最多 60 个请求（根据 IP）。
-	// 测试时，可以调高一点。
+	// 需认证路由
+	authGroup := r.Group("", middlewares.AuthMiddleware(application.Auth))
+	authGroup.POST("/api/auth/revoke", httpctrl.RevokeHandler(application.Auth))
+	authGroup.POST("/api/search", httpctrl.SearchHandler(application.ExperienceService))
+
+	// MCP SSE（SDK http.Handler 用 gin.WrapH 包装）
+	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService))
+	authGroup.Any("/sse", gin.WrapH(sseServer))
+	authGroup.Any("/message", gin.WrapH(sseServer))
+
+	// v1 Web API 路由组
+	v1 := r.Group("/v1")
 	v1.Use(middlewares.LimitIP("200-H"))
 	{
-		authGroup := v1.Group("/auth")
-		// 限流中间件：每小时限流，作为参考 Github API 每小时最多 60 个请求（根据 IP）
-		// 测试时，可以调高一点
-		authGroup.Use(middlewares.LimitIP("1000-H"))
-		{
-			// 登录
-			_ = application
-		}
+		_ = v1 // 后续注册 Web API 路由
 	}
 }

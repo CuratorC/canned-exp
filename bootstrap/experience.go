@@ -1,39 +1,19 @@
 package bootstrap
 
 import (
-	"canned-exp/internal/experience"
-	"canned-exp/internal/experience/embedding"
-	"canned-exp/internal/experience/vectorstore"
-	"database/sql"
-	"os"
-	"path/filepath"
+	"canned-exp/internal/embedding"
+	"canned-exp/internal/repository"
+	"canned-exp/internal/service"
+	"canned-exp/internal/vectorstore"
 
 	"github.com/CuratorC/gocanned/cerr"
 	"github.com/CuratorC/gocanned/config"
-	_ "modernc.org/sqlite"
+	"github.com/CuratorC/gocanned/database"
 )
 
 // SetupExperience 组装经验库的完整依赖链
-func SetupExperience() (*experience.Service, error) {
-	// 1. 数据库
-	dbPath := config.GetString("experience.db_path")
-	if dbPath == "" {
-		dbPath = "storage/experience.db"
-	}
-
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, cerr.Wrapf(err, "create db directory %s", dir)
-	}
-
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, cerr.Wrap(err, "open experience database")
-	}
-	// SQLite 单连接模式
-	db.SetMaxOpenConns(1)
-
-	// 2. Embedding Provider
+func SetupExperience(db *database.DB) (*service.ExperienceService, error) {
+	// Embedding Provider
 	apiKey := config.GetString("embedding.api_key")
 	baseURL := config.GetString("embedding.base_url")
 	model := config.GetString("embedding.model")
@@ -51,18 +31,15 @@ func SetupExperience() (*experience.Service, error) {
 		return nil, cerr.Errorf("unsupported embedding provider: %s", provider)
 	}
 
-	// 3. VectorStore
-	vecStore, err := vectorstore.NewSQLiteVecStore(db)
+	// VectorStore（使用 *sql.DB）
+	vecStore, err := vectorstore.NewSQLiteVecStore(db.SQL())
 	if err != nil {
 		return nil, cerr.Wrap(err, "create vector store")
 	}
 
-	// 4. Repository
-	repo, err := experience.NewSQLiteRepo(db, vecStore, embedder)
-	if err != nil {
-		return nil, cerr.Wrap(err, "create experience repository")
-	}
+	// Repository（db.Gorm 提供 GORM 连接）
+	repo := repository.NewGormRepo(db.Gorm, vecStore, embedder)
 
-	// 5. Service
-	return experience.NewService(repo), nil
+	// Service
+	return service.NewExperienceService(repo), nil
 }
