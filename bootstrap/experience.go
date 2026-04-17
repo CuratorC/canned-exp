@@ -56,3 +56,10 @@ func SetupPersonalityServices(db *database.DB) (*service.PersonalityService, *se
 	pkRepo := repository.NewPersonalityKeyGormRepo(db.Gorm)
 	return service.NewPersonalityService(pRepo, pkRepo), service.NewPersonalityKeyService(pkRepo)
 }
+
+// SetupFrameworkMappingService 组装 FrameworkMapping 的依赖链
+func SetupFrameworkMappingService(db *database.DB) *service.FrameworkMappingService {
+	fmRepo := repository.NewFrameworkMappingGormRepo(db.Gorm)
+	pkRepo := repository.NewPersonalityKeyGormRepo(db.Gorm)
+	return service.NewFrameworkMappingService(fmRepo, pkRepo)
+}

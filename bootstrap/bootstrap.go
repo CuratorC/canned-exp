@@ -61,6 +61,9 @@ func NewApp() (*app.App, error) {
 		// 组装 Personality 管理依赖
 		application.PersonalityService, application.PersonalityKeyService = SetupPersonalityServices(db)
 
+		// 组装 FrameworkMapping 依赖
+		application.FrameworkMappingService = SetupFrameworkMappingService(db)
+
 	// 组装认证依赖
 	application.Auth = auth.NewAuth(auth.Config{
 		TOTPSecret: config.GetString("experience.totp_secret"),
