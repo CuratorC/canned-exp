@@ -11,7 +11,8 @@ type Agent struct {
 	Name        string        `json:"name" binding:"trimmedRequired,trimmedMax=100" validate:"trimmedRequired,trimmedMax=100" gorm:"not null"`
 	Description string        `json:"description" gorm:"not null;default:''"`
 	CreatedAt   carbon.Carbon `json:"created_at"`
-	UpdatedAt   carbon.Carbon `json:"updated_at"`
+	UpdatedAt   carbon.Carbon    `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt   `json:"deleted_at" gorm:"index"`
 }
 
 // BeforeCreate GORM hook — 创建前自动设置时间戳

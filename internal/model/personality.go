@@ -14,7 +14,8 @@ type Personality struct {
 	Value     string        `json:"value" validate:"trimmedRequired"`
 	Type      string        `json:"type" validate:"personalityType" gorm:"not null;default:'string'"`
 	CreatedAt carbon.Carbon `json:"created_at"`
-	UpdatedAt carbon.Carbon `json:"updated_at"`
+	UpdatedAt carbon.Carbon    `json:"updated_at"`
+	DeletedAt gorm.DeletedAt   `json:"deleted_at" gorm:"index"`
 }
 
 func (p *Personality) BeforeCreate(tx *gorm.DB) error {

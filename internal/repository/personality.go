@@ -9,7 +9,6 @@ import (
 
 	"github.com/CuratorC/gocanned/cerr"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // ErrPersonalityNotFound personality 不存在
@@ -57,13 +56,27 @@ func (r *PersonalityGormRepo) GetByAgentAndKey(ctx context.Context, agentID, key
 }
 
 func (r *PersonalityGormRepo) Upsert(ctx context.Context, p *model.Personality) (uint, error) {
-	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "agent_id"}, {Name: "key_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "type", "updated_at"}),
-	}).Create(p)
-	if result.Error != nil {
-		return 0, cerr.Wrap(result.Error, "upsert personality")
+	var existing model.Personality
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ? AND key_id = ?", p.AgentID, p.KeyID).
+		First(&existing).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := r.db.WithContext(ctx).Create(p).Error; err != nil {
+			return 0, cerr.Wrap(err, "insert personality")
+		}
+		return p.ID, nil
 	}
+	if err != nil {
+		return 0, cerr.Wrap(err, "query personality for upsert")
+	}
+
+	existing.Value = p.Value
+	existing.Type = p.Type
+	if err := r.db.WithContext(ctx).Save(&existing).Error; err != nil {
+		return 0, cerr.Wrap(err, "update personality in upsert")
+	}
+	p.ID = existing.ID
 	return p.ID, nil
 }
 
