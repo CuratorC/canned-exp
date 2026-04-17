@@ -378,25 +378,33 @@ func TestRepository_AgentID(t *testing.T) {
 		}
 	})
 
-	t.Run("按 agent_id 列表只返回匹配的", func(t *testing.T) {
-		repo := testRepoSetup(t)
-		repo.Save(ctx, &model.Experience{AgentID: 1, Content: "A1"})
-		repo.Save(ctx, &model.Experience{AgentID: 1, Content: "A2"})
-		repo.Save(ctx, &model.Experience{AgentID: 2, Content: "B1"})
+		t.Run("按 agent_id 列表也返回全局经验", func(t *testing.T) {
+			repo := testRepoSetup(t)
+			repo.Save(ctx, &model.Experience{AgentID: 0, Content: "全局"})
+			repo.Save(ctx, &model.Experience{AgentID: 1, Content: "A1"})
+			repo.Save(ctx, &model.Experience{AgentID: 1, Content: "A2"})
+			repo.Save(ctx, &model.Experience{AgentID: 2, Content: "B1"})
 
-		results, total, err := repo.List(ctx, 1, 1, 10)
-		if err != nil {
-			t.Fatalf("List() error: %v", err)
-		}
-		if total != 2 {
-			t.Errorf("agent-A 应有 2 条，got total=%d", total)
-		}
-		for _, e := range results {
-			if e.AgentID != 1 {
-				t.Errorf("列表包含非 agent-A 的经验: AgentID=%d", e.AgentID)
+			results, total, err := repo.List(ctx, 1, 1, 10)
+			if err != nil {
+				t.Fatalf("List() error: %v", err)
 			}
-		}
-	})
+			if total != 3 {
+				t.Errorf("agent-A 应有 3 条（2 条专属 + 1 条全局），got total=%d", total)
+			}
+			hasGlobal := false
+			for _, e := range results {
+				if e.AgentID == 0 {
+					hasGlobal = true
+				}
+				if e.AgentID != 0 && e.AgentID != 1 {
+					t.Errorf("列表包含非 agent-A 的经验: AgentID=%d", e.AgentID)
+				}
+			}
+			if !hasGlobal {
+				t.Error("列表应包含全局经验（agent_id=0）")
+			}
+		})
 
 	t.Run("空 agent_id 列表返回全部", func(t *testing.T) {
 		repo := testRepoSetup(t)
