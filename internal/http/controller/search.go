@@ -11,8 +11,9 @@ import (
 
 // searchRequest REST 搜索请求
 type searchRequest struct {
-	Query string `json:"query" binding:"required"`
-	TopK  int    `json:"top_k"`
+	Query   string `json:"query" binding:"required"`
+	AgentID uint   `json:"agent_id"`
+	TopK    int    `json:"top_k"`
 }
 
 // SearchHandler 处理 POST /api/search
@@ -25,7 +26,7 @@ func SearchHandler(svc *service.ExperienceService) gin.HandlerFunc {
 			return
 		}
 
-		results, err := svc.Search(c.Request.Context(), req.Query, req.TopK)
+		results, err := svc.Search(c.Request.Context(), req.Query, req.AgentID, req.TopK)
 		if err != nil {
 			response.Abort500(c, fmt.Sprintf("search error: %v", err))
 			return

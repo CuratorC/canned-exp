@@ -44,10 +44,17 @@ func setupSSETest(t *testing.T) (*mcpclient.Client, func()) {
 		t.Fatalf("create vector store: %v", err)
 	}
 	emb := &integrationMockEmbedding{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, emb)
+	repo := repository.NewExperienceGormRepo(gormDB, vecStore, emb)
 	svc := service.NewExperienceService(repo)
+	agentRepo := repository.NewAgentGormRepo(gormDB)
+	agentSvc := service.NewAgentService(agentRepo)
 
-	mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc))
+		pRepo := repository.NewPersonalityGormRepo(gormDB)
+		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
+		pSvc := service.NewPersonalityService(pRepo, pkRepo)
+		pkSvc := service.NewPersonalityKeyService(pkRepo)
+
+	mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc))
 	ts := server.NewTestServer(mcpServer)
 
 	client, err := mcpclient.NewSSEMCPClient(ts.URL + "/sse")
@@ -110,8 +117,8 @@ func TestSSEIntegration_Handshake(t *testing.T) {
 		if err != nil {
 			t.Fatalf("tools/list error: %v", err)
 		}
-		if len(toolsResult.Tools) != 6 {
-			t.Errorf("工具数量 = %d, want 6", len(toolsResult.Tools))
+		if len(toolsResult.Tools) != 18 {
+			t.Errorf("工具数量 = %d, want 18", len(toolsResult.Tools))
 		}
 		for _, tool := range toolsResult.Tools {
 			if tool.Name == "" || tool.Description == "" {

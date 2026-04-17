@@ -24,21 +24,21 @@ type SaveResult struct {
 
 // ExperienceService 经验库业务逻辑层
 type ExperienceService struct {
-	repo repository.Repository
+	repo *repository.ExperienceGormRepo
 }
 
 // NewExperienceService 创建经验库服务
-func NewExperienceService(repo repository.Repository) *ExperienceService {
+func NewExperienceService(repo *repository.ExperienceGormRepo) *ExperienceService {
 	return &ExperienceService{repo: repo}
 }
 
 func (s *ExperienceService) Save(ctx context.Context, exp *model.Experience, force bool) (*SaveResult, error) {
-	if err := exp.Validate(); err != nil {
+	if err := model.GetValidator().Struct(exp); err != nil {
 		return nil, err
 	}
 
 	if !force {
-		similar, err := s.repo.Search(ctx, exp.TextToEmbed(), 5)
+		similar, err := s.repo.Search(ctx, exp.TextToEmbed(), exp.AgentID, 5)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func (s *ExperienceService) Get(ctx context.Context, id string) (*model.Experien
 }
 
 func (s *ExperienceService) Update(ctx context.Context, exp *model.Experience) error {
-	if err := exp.Validate(); err != nil {
+	if err := model.GetValidator().Struct(exp); err != nil {
 		return err
 	}
 	return s.repo.Update(ctx, exp)
@@ -75,22 +75,22 @@ func (s *ExperienceService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *ExperienceService) Search(ctx context.Context, query string, topK int) ([]repository.SearchResult, error) {
+func (s *ExperienceService) Search(ctx context.Context, query string, agentID uint, topK int) ([]repository.SearchResult, error) {
 	if topK <= 0 {
 		topK = DefaultTopK
 	}
 	if topK > MaxTopK {
 		topK = MaxTopK
 	}
-	return s.repo.Search(ctx, query, topK)
+	return s.repo.Search(ctx, query, agentID, topK)
 }
 
-func (s *ExperienceService) List(ctx context.Context, page, pageSize int) ([]model.Experience, int, error) {
+func (s *ExperienceService) List(ctx context.Context, agentID uint, page, pageSize int) ([]model.Experience, int, error) {
 	if page <= 0 {
 		page = DefaultPage
 	}
 	if pageSize <= 0 {
 		pageSize = DefaultPageSize
 	}
-	return s.repo.List(ctx, page, pageSize)
+	return s.repo.List(ctx, agentID, page, pageSize)
 }

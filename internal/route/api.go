@@ -27,7 +27,7 @@ func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 	authGroup.POST("/api/search", httpctrl.SearchHandler(application.ExperienceService))
 
 	// MCP SSE（SDK http.Handler 用 gin.WrapH 包装）
-	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService))
+	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService))
 	authGroup.Any("/sse", gin.WrapH(sseServer))
 	authGroup.Any("/message", gin.WrapH(sseServer))
 

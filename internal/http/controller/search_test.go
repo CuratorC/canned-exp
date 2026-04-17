@@ -73,7 +73,7 @@ func setupSearchTest(t *testing.T) (*service.ExperienceService, *gin.Engine) {
 		t.Fatalf("create vector store: %v", err)
 	}
 	emb := &mockEmbedding{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, emb)
+	repo := repository.NewExperienceGormRepo(gormDB, vecStore, emb)
 	svc := service.NewExperienceService(repo)
 
 	r := gin.New()

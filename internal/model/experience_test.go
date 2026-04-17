@@ -6,15 +6,17 @@ import (
 	"testing"
 )
 
-// --- Validate 测试 ---
+// --- Validate 测试（使用 validator 引擎）---
 
-func TestExperience_Validate(t *testing.T) {
+func TestExperience_Validation(t *testing.T) {
+	v := GetValidator()
+
 	t.Run("正常经验通过校验", func(t *testing.T) {
 		exp := Experience{
 			Title:   "Go TDD 测试文件组织",
 			Content: "测试文件要和源文件同目录，包名用 xxx_test 可以避免循环导入",
 		}
-		if err := exp.Validate(); err != nil {
+		if err := v.Struct(exp); err != nil {
 			t.Errorf("期望通过校验，但得到: %v", err)
 		}
 	})
@@ -23,14 +25,14 @@ func TestExperience_Validate(t *testing.T) {
 		exp := Experience{
 			Content: "经验内容是核心，标题可选",
 		}
-		if err := exp.Validate(); err != nil {
+		if err := v.Struct(exp); err != nil {
 			t.Errorf("期望通过校验，但得到: %v", err)
 		}
 	})
 
 	t.Run("content 为空时拒绝", func(t *testing.T) {
 		exp := Experience{Title: "有标题无内容"}
-		if err := exp.Validate(); err == nil {
+		if err := v.Struct(exp); err == nil {
 			t.Error("期望返回错误，但得到了 nil")
 		}
 	})
@@ -40,7 +42,7 @@ func TestExperience_Validate(t *testing.T) {
 			Title:   "有标题",
 			Content: "   \t\n  ",
 		}
-		if err := exp.Validate(); err == nil {
+		if err := v.Struct(exp); err == nil {
 			t.Error("期望返回错误，但得到了 nil")
 		}
 	})
@@ -50,7 +52,7 @@ func TestExperience_Validate(t *testing.T) {
 			Title:   "超长经验",
 			Content: strings.Repeat("这是一段很长的经验内容。", 2000),
 		}
-		if err := exp.Validate(); err == nil {
+		if err := v.Struct(exp); err == nil {
 			t.Error("期望返回超长错误，但得到了 nil")
 		}
 	})
@@ -86,7 +88,7 @@ func TestExperience_TextToEmbed(t *testing.T) {
 func TestExperience_AgentID_Serialization(t *testing.T) {
 	t.Run("AgentID非空时序列化包含该字段", func(t *testing.T) {
 		exp := Experience{
-			AgentID: "agent-123",
+			AgentID: 123,
 			Content: "test content",
 		}
 		data, err := json.Marshal(exp)
@@ -94,14 +96,14 @@ func TestExperience_AgentID_Serialization(t *testing.T) {
 			t.Fatalf("marshal failed: %v", err)
 		}
 		got := string(data)
-		if !strings.Contains(got, `"agent_id":"agent-123"`) {
+		if !strings.Contains(got, `"agent_id":123`) {
 			t.Errorf("expected JSON to contain agent_id, got: %s", got)
 		}
 	})
 
 	t.Run("AgentID为空时序列化省略该字段", func(t *testing.T) {
 		exp := Experience{
-			AgentID: "",
+			AgentID: 0,
 			Content: "test content",
 		}
 		data, err := json.Marshal(exp)
@@ -115,13 +117,13 @@ func TestExperience_AgentID_Serialization(t *testing.T) {
 	})
 
 	t.Run("AgentID正确反序列化", func(t *testing.T) {
-		jsonStr := `{"id":"exp-1","agent_id":"agent-456","content":"hello"}`
+		jsonStr := `{"id":"exp-1","agent_id":456,"content":"hello"}`
 		var exp Experience
 		if err := json.Unmarshal([]byte(jsonStr), &exp); err != nil {
 			t.Fatalf("unmarshal failed: %v", err)
 		}
-		if exp.AgentID != "agent-456" {
-			t.Errorf("AgentID mismatch: got %q, want %q", exp.AgentID, "agent-456")
+		if exp.AgentID != 456 {
+			t.Errorf("AgentID mismatch: got %d, want %d", exp.AgentID, 456)
 		}
 	})
 
@@ -131,8 +133,8 @@ func TestExperience_AgentID_Serialization(t *testing.T) {
 		if err := json.Unmarshal([]byte(jsonStr), &exp); err != nil {
 			t.Fatalf("unmarshal failed: %v", err)
 		}
-		if exp.AgentID != "" {
-			t.Errorf("AgentID should be empty, got %q", exp.AgentID)
+		if exp.AgentID != 0 {
+			t.Errorf("AgentID should be empty, got %d", exp.AgentID)
 		}
 	})
 }

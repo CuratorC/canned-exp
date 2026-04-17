@@ -13,7 +13,10 @@ import (
 // App holds all application-level dependencies, assembled by bootstrap
 // and passed explicitly to the layers that need them.
 type App struct {
-	DB                *database.DB
-	ExperienceService *service.ExperienceService
-	Auth              *auth.Auth
+	DB                  *database.DB
+	ExperienceService   *service.ExperienceService
+	AgentService        *service.AgentService
+	PersonalityService  *service.PersonalityService
+	PersonalityKeyService *service.PersonalityKeyService
+	Auth                *auth.Auth
 }

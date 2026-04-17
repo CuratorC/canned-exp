@@ -38,8 +38,21 @@ func SetupExperience(db *database.DB) (*service.ExperienceService, error) {
 	}
 
 	// Repository（db.Gorm 提供 GORM 连接）
-	repo := repository.NewGormRepo(db.Gorm, vecStore, embedder)
+	repo := repository.NewExperienceGormRepo(db.Gorm, vecStore, embedder)
 
 	// Service
 	return service.NewExperienceService(repo), nil
+}
+
+// SetupAgentService 组装 Agent 管理的依赖链
+func SetupAgentService(db *database.DB) *service.AgentService {
+	agentRepo := repository.NewAgentGormRepo(db.Gorm)
+	return service.NewAgentService(agentRepo)
+}
+
+// SetupPersonalityServices 组装 Personality + PersonalityKey 的依赖链
+func SetupPersonalityServices(db *database.DB) (*service.PersonalityService, *service.PersonalityKeyService) {
+	pRepo := repository.NewPersonalityGormRepo(db.Gorm)
+	pkRepo := repository.NewPersonalityKeyGormRepo(db.Gorm)
+	return service.NewPersonalityService(pRepo, pkRepo), service.NewPersonalityKeyService(pkRepo)
 }

@@ -55,6 +55,12 @@ func NewApp() (*app.App, error) {
 	}
 	application.ExperienceService = svc
 
+		// 组装 Agent 管理依赖
+		application.AgentService = SetupAgentService(db)
+
+		// 组装 Personality 管理依赖
+		application.PersonalityService, application.PersonalityKeyService = SetupPersonalityServices(db)
+
 	// 组装认证依赖
 	application.Auth = auth.NewAuth(auth.Config{
 		TOTPSecret: config.GetString("experience.totp_secret"),

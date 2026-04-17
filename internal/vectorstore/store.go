@@ -16,21 +16,16 @@ type SearchResult struct {
 
 // VectorStore 定义了向量存储和检索的抽象接口
 type VectorStore interface {
-	// Store 存储一个向量，关联到指定 ID（覆盖更新）
 	Store(ctx context.Context, id string, vector []float64) error
-	// Search 搜索与 query 最相似的 topK 个向量
 	Search(ctx context.Context, query []float64, topK int) ([]SearchResult, error)
-	// Delete 删除指定 ID 的向量（不存在时不报错）
 	Delete(ctx context.Context, id string) error
 }
 
 // SQLiteVecStore 基于 SQLite BLOB 的向量存储实现
-// 使用纯 Go 余弦相似度计算，适合个人经验库的规模
 type SQLiteVecStore struct {
 	db *sql.DB
 }
 
-// NewSQLiteVecStore 创建并初始化向量存储
 func NewSQLiteVecStore(db *sql.DB) (*SQLiteVecStore, error) {
 	s := &SQLiteVecStore{db: db}
 	if err := s.init(); err != nil {
@@ -96,8 +91,6 @@ func (s *SQLiteVecStore) Delete(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM vectors WHERE id = ?", id)
 	return err
 }
-
-// --- 向量编解码 ---
 
 func encodeVector(vec []float64) []byte {
 	buf := make([]byte, len(vec)*8)

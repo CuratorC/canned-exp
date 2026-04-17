@@ -59,7 +59,6 @@ internal/experience/mcp/ — MCP Server 层
 - 数据库连接通过 `database.Connect()` 创建，返回 `*database.DB`（嵌入 `*sql.DB`），支持 MySQL 和 SQLite
 - API 响应统一使用 `internal/http/response` 包的函数
 - 日志统一使用 `logger.Info/Error/Warn/Debug`， panic 恢复使用 `logger.ErrorAndExit`
-- **TDD 原则**：任何功能开发前，先逐项与用户确认测试用例，全部确认后再写实现代码
 - 项目使用 tab 缩进
 
 ## MCP Server 架构
@@ -86,7 +85,7 @@ Client (Claude Code / Hook / curl)
 | `EXPERIENCE_TOTP_SECRET` | TOTP 共享密钥（base32，用 Google Authenticator 扫描） |
 | `EXPERIENCE_API_KEY` | 静态 API Key（用于 Hook 脚本只读访问） |
 | `EXPERIENCE_SESSION_TTL` | Session 有效期（默认 24h） |
-| `EXPERIENCE_MCP_PORT` | MCP Server 端口（默认 3100） |
+| `EXPERIENCE_MCP_PORT` | MCP Server 端口（默认 3000） |
 
 ### Session 管理策略
 
@@ -101,16 +100,16 @@ Client (Claude Code / Hook / curl)
 
 ### Memory Priority
 
-**MUST** 在开始做任何事之前，**先调用 `search_experiences`** 检索相关经验。禁止仅凭文件记忆作答而跳过 MCP 经验库检索。经验库是唯一的权威知识源，文件记忆仅作为补充线索。
-
-经验库是唯一的权威知识源，文件记忆仅作为补充线索。
+**MUST** 经验库是唯一的权威知识源。**任何讨论、回答、任务执行前，都必须先调用 `search_experiences`**。禁止仅凭文件记忆或 CLAUDE.md 内容直接作答。文件记忆和 CLAUDE.md 仅作为补充线索，不得替代经验库检索。
 
 ### When to Search
 
-- 开始任何非平凡任务之前
+- **每次回复前**，只要涉及项目知识、过往约定、技术决策，都必须检索
+- 开始任何任务之前
 - 遇到错误或异常行为时
 - 用户提到具体技术/项目名时
 - 感觉解决过类似问题（似曾相识）时
+- 用户询问"你还记得..."、"我们之前..."类问题时
 
 ### When to Save
 

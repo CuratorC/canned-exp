@@ -22,42 +22,29 @@ type SearchResult struct {
 	Score      float64
 }
 
-// Repository 定义了经验持久化的抽象接口
-type Repository interface {
-	Save(ctx context.Context, exp *model.Experience) (string, error)
-	Get(ctx context.Context, id string) (*model.Experience, error)
-	Update(ctx context.Context, exp *model.Experience) error
-	Delete(ctx context.Context, id string) error
-	Search(ctx context.Context, query string, topK int) ([]SearchResult, error)
-	List(ctx context.Context, page, pageSize int) ([]model.Experience, int, error)
-}
-
-// GormRepo 基于 GORM 的经验仓库实现
-type GormRepo struct {
+// ExperienceGormRepo 基于 GORM 的经验仓库实现
+type ExperienceGormRepo struct {
 	db       *gorm.DB
 	vecStore *vectorstore.SQLiteVecStore
 	embedder embedding.Provider
 }
 
-// NewGormRepo 创建经验仓库
-func NewGormRepo(db *gorm.DB, vecStore *vectorstore.SQLiteVecStore, embedder embedding.Provider) *GormRepo {
-	return &GormRepo{db: db, vecStore: vecStore, embedder: embedder}
+// NewExperienceGormRepo 创建经验仓库
+func NewExperienceGormRepo(db *gorm.DB, vecStore *vectorstore.SQLiteVecStore, embedder embedding.Provider) *ExperienceGormRepo {
+	return &ExperienceGormRepo{db: db, vecStore: vecStore, embedder: embedder}
 }
 
-func (r *GormRepo) Save(ctx context.Context, exp *model.Experience) (string, error) {
-	// 生成向量
+func (r *ExperienceGormRepo) Save(ctx context.Context, exp *model.Experience) (string, error) {
 	text := exp.TextToEmbed()
 	embeddings, err := r.embedder.Embed(ctx, []string{text})
 	if err != nil {
 		return "", cerr.Wrap(err, "generate embedding")
 	}
 
-	// GORM BeforeCreate hook 会设置 ID 和时间戳
 	if err := r.db.WithContext(ctx).Create(exp).Error; err != nil {
 		return "", cerr.Wrap(err, "insert experience")
 	}
 
-	// 存储向量
 	if len(embeddings) > 0 {
 		if err := r.vecStore.Store(ctx, exp.ID, embeddings[0]); err != nil {
 			return "", cerr.Wrap(err, "store vector")
@@ -67,7 +54,7 @@ func (r *GormRepo) Save(ctx context.Context, exp *model.Experience) (string, err
 	return exp.ID, nil
 }
 
-func (r *GormRepo) Get(ctx context.Context, id string) (*model.Experience, error) {
+func (r *ExperienceGormRepo) Get(ctx context.Context, id string) (*model.Experience, error) {
 	var exp model.Experience
 	err := r.db.WithContext(ctx).First(&exp, "id = ?", id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,15 +66,13 @@ func (r *GormRepo) Get(ctx context.Context, id string) (*model.Experience, error
 	return &exp, nil
 }
 
-func (r *GormRepo) Update(ctx context.Context, exp *model.Experience) error {
-	// 重新生成向量
+func (r *ExperienceGormRepo) Update(ctx context.Context, exp *model.Experience) error {
 	text := exp.TextToEmbed()
 	embeddings, err := r.embedder.Embed(ctx, []string{text})
 	if err != nil {
 		return cerr.Wrap(err, "generate embedding")
 	}
 
-	// GORM Save 是 upsert，需先确认记录存在
 	var exists int64
 	r.db.WithContext(ctx).Model(&model.Experience{}).Where("id = ?", exp.ID).Count(&exists)
 	if exists == 0 {
@@ -98,7 +83,6 @@ func (r *GormRepo) Update(ctx context.Context, exp *model.Experience) error {
 		return cerr.Wrap(err, fmt.Sprintf("update experience %s", exp.ID))
 	}
 
-	// 更新向量
 	if len(embeddings) > 0 {
 		if err := r.vecStore.Store(ctx, exp.ID, embeddings[0]); err != nil {
 			return cerr.Wrap(err, "update vector")
@@ -108,14 +92,13 @@ func (r *GormRepo) Update(ctx context.Context, exp *model.Experience) error {
 	return nil
 }
 
-func (r *GormRepo) Delete(ctx context.Context, id string) error {
+func (r *ExperienceGormRepo) Delete(ctx context.Context, id string) error {
 	r.db.WithContext(ctx).Delete(&model.Experience{}, "id = ?", id)
 	r.vecStore.Delete(ctx, id)
 	return nil
 }
 
-func (r *GormRepo) Search(ctx context.Context, query string, topK int) ([]SearchResult, error) {
-	// 生成查询向量
+func (r *ExperienceGormRepo) Search(ctx context.Context, query string, agentID uint, topK int) ([]SearchResult, error) {
 	embeddings, err := r.embedder.Embed(ctx, []string{query})
 	if err != nil {
 		return nil, cerr.Wrap(err, "generate query embedding")
@@ -124,36 +107,46 @@ func (r *GormRepo) Search(ctx context.Context, query string, topK int) ([]Search
 		return nil, nil
 	}
 
-	// 向量搜索
-	vecResults, err := r.vecStore.Search(ctx, embeddings[0], topK)
+	fetchSize := topK * 3
+	vecResults, err := r.vecStore.Search(ctx, embeddings[0], fetchSize)
 	if err != nil {
 		return nil, cerr.Wrap(err, "vector search")
 	}
 
-	// 加载完整经验
-	results := make([]SearchResult, 0, len(vecResults))
+	results := make([]SearchResult, 0, topK)
 	for _, vr := range vecResults {
 		exp, err := r.Get(ctx, vr.ID)
 		if err != nil {
-			continue // 已删除的跳过
+			continue
+		}
+		// agentID 非 0 时：只返回属于该 agent 或全局（agent_id=0）的经验
+		if agentID != 0 && exp.AgentID != agentID && exp.AgentID != 0 {
+			continue
 		}
 		results = append(results, SearchResult{
 			Experience: *exp,
 			Score:      vr.Score,
 		})
+		if len(results) >= topK {
+			break
+		}
 	}
 
 	return results, nil
 }
 
-func (r *GormRepo) List(ctx context.Context, page, pageSize int) ([]model.Experience, int, error) {
+func (r *ExperienceGormRepo) List(ctx context.Context, agentID uint, page, pageSize int) ([]model.Experience, int, error) {
+	db := r.db.WithContext(ctx).Model(&model.Experience{})
+	if agentID != 0 {
+		db = db.Where("agent_id = ? OR agent_id = 0", agentID)
+	}
+
 	var total int64
-	r.db.WithContext(ctx).Model(&model.Experience{}).Count(&total)
+	db.Count(&total)
 
 	var experiences []model.Experience
 	offset := (page - 1) * pageSize
-	err := r.db.WithContext(ctx).
-		Order("created_at DESC").
+	err := db.Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&experiences).Error

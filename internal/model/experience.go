@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/dromara/carbon/v2"
@@ -9,15 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// MaxContentLength 经验内容的最大字符数限制（约 8K tokens）
-const MaxContentLength = 8000
-
 // Experience 代表一条经验记录
 type Experience struct {
 	ID        string         `json:"id" gorm:"primaryKey"`
-	AgentID   string         `json:"agent_id,omitempty" gorm:"index"`
+	AgentID   uint           `json:"agent_id,omitempty" gorm:"index;not null;default:0"`
 	Title     string         `json:"title" gorm:"not null;default:''"`
-	Content   string         `json:"content" gorm:"not null;default:''"`
+	Content   string         `json:"content" binding:"trimmedRequired,trimmedMax=8000" validate:"trimmedRequired,trimmedMax=8000" gorm:"not null;default:''"`
 	Tags      []string       `json:"tags" gorm:"serializer:sonic;not null;default:'[]'"`
 	Source    string         `json:"source" gorm:"not null;default:''"`
 	CreatedAt carbon.Carbon  `json:"created_at"`
@@ -41,20 +37,7 @@ func (e *Experience) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-// Validate 校验经验内容是否合法
-func (e *Experience) Validate() error {
-	content := strings.TrimSpace(e.Content)
-	if content == "" {
-		return fmt.Errorf("content cannot be empty")
-	}
-	if len(content) > MaxContentLength {
-		return fmt.Errorf("content exceeds maximum length of %d characters", MaxContentLength)
-	}
-	return nil
-}
-
 // TextToEmbed 返回用于向量化的文本（title + content 拼接）
-// 前提：调用方已通过 Validate 校验
 func (e *Experience) TextToEmbed() string {
 	title := strings.TrimSpace(e.Title)
 	content := strings.TrimSpace(e.Content)

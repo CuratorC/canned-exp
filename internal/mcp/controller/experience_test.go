@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"math"
+	"strings"
 	"testing"
 
 	"canned-exp/internal/embedding"
@@ -75,9 +76,18 @@ func testMCPServer(t *testing.T) *Server {
 	}
 
 	emb := &mockEmbedding{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, emb)
-	svc := service.NewExperienceService(repo)
-	return NewServer(svc)
+	expRepo := repository.NewExperienceGormRepo(gormDB, vecStore, emb)
+	expSvc := service.NewExperienceService(expRepo)
+
+	agentRepo := repository.NewAgentGormRepo(gormDB)
+	agentSvc := service.NewAgentService(agentRepo)
+
+			pRepo := repository.NewPersonalityGormRepo(gormDB)
+		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
+		pSvc := service.NewPersonalityService(pRepo, pkRepo)
+		pkSvc := service.NewPersonalityKeyService(pkRepo)
+
+		return NewServer(expSvc, agentSvc, pSvc, pkSvc)
 }
 
 // --- 工具注册测试 ---
@@ -463,3 +473,205 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 
 // 确保 mockEmbedding 实现了接口
 var _ embedding.Provider = (*mockEmbedding)(nil)
+
+// --- Agent 工具 + agent_id 参数测试 ---
+
+func TestMCPServer_AgentTools(t *testing.T) {
+	server := testMCPServer(t)
+	ctx := context.Background()
+
+	t.Run("注册了 11 个工具", func(t *testing.T) {
+		tools := server.ListTools()
+		if len(tools) != 18 {
+			t.Errorf("工具数量 = %d, want 18", len(tools))
+		}
+	})
+
+	t.Run("save_experience 带 agent_id 存储", func(t *testing.T) {
+		result, err := server.CallTool(ctx, "save_experience", map[string]interface{}{
+			"content":  "带 AgentID 的经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(1),
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+		// 通过 get 验证 agent_id
+		id := result.Content
+		got, _ := server.CallTool(ctx, "get_experience", map[string]interface{}{"id": id})
+		if !contains(got.Content, "agent_id") {
+			t.Errorf("经验应包含 agent_id=1, got: %s", got.Content)
+		}
+	})
+
+	t.Run("search_experiences 带 agent_id 过滤", func(t *testing.T) {
+		s := testMCPServer(t)
+		s.CallTool(ctx, "save_experience", map[string]interface{}{
+			"content":  "AgentA 的经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(1),
+		})
+		s.CallTool(ctx, "save_experience", map[string]interface{}{
+			"content":  "AgentB 的经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(2),
+		})
+
+		result, err := s.CallTool(ctx, "search_experiences", map[string]interface{}{
+			"query":    "经验",
+			"agent_id": float64(1),
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+		if contains(result.Content, "AgentB") {
+			t.Error("搜索 agent-A 不应返回 AgentB 的经验")
+		}
+	})
+
+	t.Run("list_experiences 带 agent_id 过滤", func(t *testing.T) {
+		s := testMCPServer(t)
+		s.CallTool(ctx, "save_experience", map[string]interface{}{
+			"content":  "AgentX 经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(99),
+		})
+		s.CallTool(ctx, "save_experience", map[string]interface{}{
+			"content": "全局经验",
+			"tags":    []interface{}{"test"},
+		})
+
+		result, err := s.CallTool(ctx, "list_experiences", map[string]interface{}{
+			"agent_id": float64(99),
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+	})
+
+	t.Run("register_agent 创建成功", func(t *testing.T) {
+		result, err := server.CallTool(ctx, "register_agent", map[string]interface{}{
+			"name":        "Claude",
+			"description": "AI coding assistant",
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+		if result.Content == "" {
+			t.Error("应返回 Agent ID")
+		}
+	})
+
+	t.Run("register_agent 缺少 name 报错", func(t *testing.T) {
+		result, err := server.CallTool(ctx, "register_agent", map[string]interface{}{
+			"description": "no name",
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if !result.IsError {
+			t.Error("缺少 name 应返回错误")
+		}
+	})
+
+	t.Run("list_agents 返回已注册的 Agent", func(t *testing.T) {
+		s := testMCPServer(t)
+		s.CallTool(ctx, "register_agent", map[string]interface{}{
+			"name": "TestAgent",
+		})
+
+		result, err := s.CallTool(ctx, "list_agents", map[string]interface{}{})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+		if !contains(result.Content, "TestAgent") {
+			t.Errorf("应包含 TestAgent, got: %s", result.Content)
+		}
+	})
+
+	t.Run("get_agent 返回正确信息", func(t *testing.T) {
+		s := testMCPServer(t)
+		regResult, _ := s.CallTool(ctx, "register_agent", map[string]interface{}{
+			"name":        "GetTestAgent",
+			"description": "for get test",
+		})
+		id := regResult.Content
+
+		result, err := s.CallTool(ctx, "get_agent", map[string]interface{}{"id": id})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+		if !contains(result.Content, "GetTestAgent") {
+			t.Errorf("应包含 Agent 名称, got: %s", result.Content)
+		}
+	})
+
+	t.Run("update_agent 修改成功", func(t *testing.T) {
+		s := testMCPServer(t)
+		regResult, _ := s.CallTool(ctx, "register_agent", map[string]interface{}{
+			"name": "OldName",
+		})
+		id := regResult.Content
+
+		result, err := s.CallTool(ctx, "update_agent", map[string]interface{}{
+			"id":          id,
+			"name":        "NewName",
+			"description": "updated",
+		})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+
+		got, _ := s.CallTool(ctx, "get_agent", map[string]interface{}{"id": id})
+		if !contains(got.Content, "NewName") {
+			t.Errorf("更新后名称应为 NewName, got: %s", got.Content)
+		}
+	})
+
+	t.Run("delete_agent 删除成功", func(t *testing.T) {
+		s := testMCPServer(t)
+		regResult, _ := s.CallTool(ctx, "register_agent", map[string]interface{}{
+			"name": "ToDelete",
+		})
+		id := regResult.Content
+
+		result, err := s.CallTool(ctx, "delete_agent", map[string]interface{}{"id": id})
+		if err != nil {
+			t.Fatalf("CallTool() error: %v", err)
+		}
+		if result.IsError {
+			t.Errorf("不应返回错误: %s", result.Content)
+		}
+
+		got, _ := s.CallTool(ctx, "get_agent", map[string]interface{}{"id": id})
+		if !got.IsError {
+			t.Error("删除后 get_agent 应返回错误")
+		}
+	})
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(sub) == 0 ||
+		(len(s) > 0 && len(sub) > 0 && strings.Contains(s, sub)))
+}

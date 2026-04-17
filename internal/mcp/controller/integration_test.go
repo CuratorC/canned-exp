@@ -86,11 +86,18 @@ func setupIntegrationTest(t *testing.T) (stdinWriter io.Writer, stdoutReader io.
 		t.Fatalf("create vector store: %v", err)
 	}
 	emb := &integrationMockEmbedding{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, emb)
+	repo := repository.NewExperienceGormRepo(gormDB, vecStore, emb)
 	svc := service.NewExperienceService(repo)
+	agentRepo := repository.NewAgentGormRepo(gormDB)
+	agentSvc := service.NewAgentService(agentRepo)
+
+		pRepo := repository.NewPersonalityGormRepo(gormDB)
+		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
+		pSvc := service.NewPersonalityService(pRepo, pkRepo)
+		pkSvc := service.NewPersonalityKeyService(pkRepo)
 
 	// 创建 MCP Server（通过 mcpgw 桥接到 SDK）
-	sdkMCP := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc))
+	sdkMCP := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc))
 	stdioServer := sdkserver.NewStdioServer(sdkMCP)
 
 	// 创建 stdio 管道
@@ -239,8 +246,8 @@ func TestMCPIntegration_ToolsList(t *testing.T) {
 		if !ok {
 			t.Fatal("响应缺少 tools 数组")
 		}
-		if len(tools) != 6 {
-			t.Errorf("工具数量 = %d, want 6", len(tools))
+		if len(tools) != 18 {
+			t.Errorf("工具数量 = %d, want 18", len(tools))
 		}
 
 		// 验证每个工具都有 name 和 description

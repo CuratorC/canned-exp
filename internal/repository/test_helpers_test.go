@@ -64,8 +64,8 @@ func textToVector(text string, dims int) []float64 {
 	return vec
 }
 
-// setupTestRepo 创建使用内存 SQLite + gocanned migration 的完整测试仓库
-func setupTestRepo(t *testing.T) (*GormRepo, *gorm.DB) {
+// setupTestDB 创建使用内存 SQLite + gocanned migration 的测试数据库
+func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -73,25 +73,34 @@ func setupTestRepo(t *testing.T) (*GormRepo, *gorm.DB) {
 		t.Fatalf("open gorm memory sqlite: %v", err)
 	}
 
-	// 通过 gocanned migration 初始化表结构
 	dbDB := &database.DB{Gorm: gormDB, Driver: "sqlite"}
 	runner := migration.NewRunner("main", dbDB)
 	if err := runner.Run(); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
+	return gormDB
+}
+
+// setupTestRepo 创建使用内存 SQLite + gocanned migration 的完整测试仓库
+func setupTestRepo(t *testing.T) (*ExperienceGormRepo, *gorm.DB) {
+	t.Helper()
+
+	gormDB := setupTestDB(t)
+
+	dbDB := &database.DB{Gorm: gormDB, Driver: "sqlite"}
 	vecStore, err := vectorstore.NewSQLiteVecStore(dbDB.SQL())
 	if err != nil {
 		t.Fatalf("create vector store: %v", err)
 	}
 
 	embedder := &mockEmbeddingProvider{dimensions: 64}
-	repo := NewGormRepo(gormDB, vecStore, embedder)
+	repo := NewExperienceGormRepo(gormDB, vecStore, embedder)
 	return repo, gormDB
 }
 
 // 确保 mockEmbeddingProvider 实现了 embedding.Provider 接口
 var _ embedding.Provider = (*mockEmbeddingProvider)(nil)
 
-// 确保 model 包的 init() 被触发（注册 sonic serializer）
-var _ = model.MaxContentLength
+// 确保 model 包被导入（注册 sonic serializer）
+var _ model.Experience

@@ -73,15 +73,48 @@ func setupTransportTestSvc(t *testing.T) *service.ExperienceService {
 		t.Fatalf("create vector store: %v", err)
 	}
 	emb := &transportMockEmbedding{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, emb)
+	repo := repository.NewExperienceGormRepo(gormDB, vecStore, emb)
 	return service.NewExperienceService(repo)
+}
+
+func setupTransportAgentSvc(t *testing.T) *service.AgentService {
+	t.Helper()
+	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open gorm: %v", err)
+	}
+	dbDB := &database.DB{Gorm: gormDB, Driver: "sqlite"}
+	runner := migration.NewRunner("main", dbDB)
+	if err := runner.Run(); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+	agentRepo := repository.NewAgentGormRepo(gormDB)
+	return service.NewAgentService(agentRepo)
+}
+
+func setupTransportPersonalitySvc(t *testing.T) (*service.PersonalityService, *service.PersonalityKeyService) {
+	t.Helper()
+	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open gorm: %v", err)
+	}
+	dbDB := &database.DB{Gorm: gormDB, Driver: "sqlite"}
+	runner := migration.NewRunner("main", dbDB)
+	if err := runner.Run(); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+	pRepo := repository.NewPersonalityGormRepo(gormDB)
+	pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
+	return service.NewPersonalityService(pRepo, pkRepo), service.NewPersonalityKeyService(pkRepo)
 }
 
 // --- 工具转换测试 ---
 
 func TestTransport_ConvertTool(t *testing.T) {
 	svc := setupTransportTestSvc(t)
-	ourServer := NewServer(svc)
+	agentSvc := setupTransportAgentSvc(t)
+	pSvc, pkSvc := setupTransportPersonalitySvc(t)
+	ourServer := NewServer(svc, agentSvc, pSvc, pkSvc)
 
 	t.Run("所有工具都能成功转换为 MCP SDK Tool", func(t *testing.T) {
 		for _, td := range ourServer.ListTools() {
@@ -137,7 +170,9 @@ func TestTransport_BuildMCPServer(t *testing.T) {
 	svc := setupTransportTestSvc(t)
 
 	t.Run("BuildMCPServer 不 panic 且返回有效实例", func(t *testing.T) {
-		expServer := NewServer(svc)
+		agentSvc := setupTransportAgentSvc(t)
+		pSvc, pkSvc := setupTransportPersonalitySvc(t)
+			expServer := NewServer(svc, agentSvc, pSvc, pkSvc)
 		mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", expServer)
 		if mcpServer == nil {
 			t.Fatal("BuildMCPServer 返回 nil")
@@ -145,7 +180,9 @@ func TestTransport_BuildMCPServer(t *testing.T) {
 	})
 
 	t.Run("NewStdioServer 可创建", func(t *testing.T) {
-		expServer := NewServer(svc)
+		agentSvc := setupTransportAgentSvc(t)
+		pSvc, pkSvc := setupTransportPersonalitySvc(t)
+			expServer := NewServer(svc, agentSvc, pSvc, pkSvc)
 		stdioServer := mcpgw.NewStdioServer("canned-exp", "1.0.0", expServer)
 		if stdioServer == nil {
 			t.Fatal("NewStdioServer 返回 nil")

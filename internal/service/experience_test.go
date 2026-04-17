@@ -16,10 +16,10 @@ import (
 	"github.com/CuratorC/gocanned/database"
 	"github.com/CuratorC/gocanned/logger"
 	"github.com/CuratorC/gocanned/migration"
-	_ "modernc.org/sqlite"
+	"go.uber.org/zap"
 	sqlite "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"go.uber.org/zap"
+	_ "modernc.org/sqlite"
 )
 
 // mockEmbeddingProvider 基于字符频率的 mock embedding
@@ -69,7 +69,7 @@ func init() {
 }
 
 // setupTestRepo 创建使用内存 SQLite + gocanned migration 的测试仓库
-func setupTestRepo(t *testing.T) repository.Repository {
+func setupTestRepo(t *testing.T) *repository.ExperienceGormRepo {
 	t.Helper()
 
 	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -89,7 +89,7 @@ func setupTestRepo(t *testing.T) repository.Repository {
 	}
 
 	embedder := &mockEmbeddingProvider{dimensions: 64}
-	repo := repository.NewGormRepo(gormDB, vecStore, embedder)
+	repo := repository.NewExperienceGormRepo(gormDB, vecStore, embedder)
 	return repo
 }
 
@@ -291,7 +291,7 @@ func TestService_Search(t *testing.T) {
 	}, true)
 
 	t.Run("正常搜索返回结果", func(t *testing.T) {
-		results, err := svc.Search(ctx, "怎么用 Redis 做缓存", 5)
+		results, err := svc.Search(ctx, "怎么用 Redis 做缓存", 0, 5)
 		if err != nil {
 			t.Fatalf("Search() error: %v", err)
 		}
@@ -304,7 +304,7 @@ func TestService_Search(t *testing.T) {
 	})
 
 	t.Run("topK 为 0 时使用默认值", func(t *testing.T) {
-		results, err := svc.Search(ctx, "经验", 0)
+		results, err := svc.Search(ctx, "经验", 0, 0)
 		if err != nil {
 			t.Fatalf("Search() error: %v", err)
 		}
@@ -314,7 +314,7 @@ func TestService_Search(t *testing.T) {
 	})
 
 	t.Run("topK 为负数时使用默认值", func(t *testing.T) {
-		results, err := svc.Search(ctx, "经验", -1)
+		results, err := svc.Search(ctx, "经验", 0, -1)
 		if err != nil {
 			t.Fatalf("Search() error: %v", err)
 		}
@@ -324,7 +324,7 @@ func TestService_Search(t *testing.T) {
 	})
 
 	t.Run("topK 超过上限时被截断", func(t *testing.T) {
-		results, err := svc.Search(ctx, "经验", 10000)
+		results, err := svc.Search(ctx, "经验", 0, 10000)
 		if err != nil {
 			t.Fatalf("Search() error: %v", err)
 		}
@@ -397,7 +397,7 @@ func TestService_List(t *testing.T) {
 	svc.Save(ctx, &model.Experience{Content: "经验 2", Source: "chatgpt"}, true)
 
 	t.Run("分页列出经验", func(t *testing.T) {
-		results, total, err := svc.List(ctx, 1, 10)
+		results, total, err := svc.List(ctx, 0, 1, 10)
 		if err != nil {
 			t.Fatalf("List() error: %v", err)
 		}
@@ -410,7 +410,7 @@ func TestService_List(t *testing.T) {
 	})
 
 	t.Run("page 为 0 时默认为第 1 页", func(t *testing.T) {
-		results, _, err := svc.List(ctx, 0, 10)
+		results, _, err := svc.List(ctx, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("List() error: %v", err)
 		}
@@ -420,7 +420,7 @@ func TestService_List(t *testing.T) {
 	})
 
 	t.Run("pageSize 为 0 时使用默认值", func(t *testing.T) {
-		results, _, err := svc.List(ctx, 1, 0)
+		results, _, err := svc.List(ctx, 0, 1, 0)
 		if err != nil {
 			t.Fatalf("List() error: %v", err)
 		}

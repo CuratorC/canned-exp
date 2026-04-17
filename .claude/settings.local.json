@@ -16,7 +16,9 @@
       "Bash(EXPERIENCE_API_KEY=\"6395601ed4e2f61625b02d349f8c3a49fccc6999ed562b6f3bac177ad8ca154c\" go run ./main.go serve)",
       "Read(//tmp/**)",
       "Bash(fuser -k 3000/tcp)",
-      "Bash(go run *)"
+      "Bash(go run *)",
+      "Bash(sed -i -e 's/\"agent_id\": \"agent-001\"/\"agent_id\": float64\\(1\\)/g' -e 's/\"agent_id\": \"agent-A\"/\"agent_id\": float64\\(1\\)/g' -e 's/\"agent_id\": \"agent-B\"/\"agent_id\": float64\\(2\\)/g' -e 's/\"agent_id\": \"agent-X\"/\"agent_id\": float64\\(99\\)/g' internal/mcp/controller/experience_test.go)",
+      "Bash(sed -i -e 's/contains\\(got.Content, \"agent-001\"\\)/contains\\(got.Content, `\"agent_id\":1`\\)/g' -e 's/经验应包含 agent_id=agent-001/经验应包含 agent_id=1/g' internal/mcp/controller/experience_test.go)"
     ],
     "additionalDirectories": [
       "/home/curatorc/GolandProjects/canned-exp/.claude",
@@ -26,6 +28,18 @@
   },
   "enableAllProjectMcpServers": true,
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/curatorc/GolandProjects/canned-exp/.claude/hooks/go-tab-indent.sh",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "matcher": "",
