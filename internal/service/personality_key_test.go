@@ -147,11 +147,11 @@ func TestPersonalityKeyService_List(t *testing.T) {
 		if err != nil {
 			t.Fatalf("List failed: %v", err)
 		}
-		if total != 6 {
-			t.Errorf("expected 6, got %d", total)
+		if total != 16 {
+			t.Errorf("expected 16, got %d", total)
 		}
-		if len(keys) != 6 {
-			t.Errorf("expected 6 keys, got %d", len(keys))
+		if len(keys) != 10 {
+			t.Errorf("expected 10 keys, got %d", len(keys))
 		}
 	})
 

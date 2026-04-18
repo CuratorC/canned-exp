@@ -130,29 +130,29 @@ func TestFrameworkMappingRepo_ListByFramework(t *testing.T) {
 	repo := NewFrameworkMappingGormRepo(db)
 	ctx := context.Background()
 
-	t.Run("openclaw 预置 6 条", func(t *testing.T) {
+	t.Run("openclaw 有 16 条", func(t *testing.T) {
 		mappings, total, err := repo.ListByFramework(ctx, "openclaw", 1, 10)
 		if err != nil {
 			t.Fatalf("ListByFramework failed: %v", err)
 		}
-		if total != 6 {
-			t.Errorf("expected 6, got %d", total)
+		if total != 16 {
+			t.Errorf("expected 16, got %d", total)
 		}
-		if len(mappings) != 6 {
-			t.Errorf("expected 6 items, got %d", len(mappings))
+		if len(mappings) != 10 {
+			t.Errorf("expected 10 items, got %d", len(mappings))
 		}
 	})
 
-	t.Run("claude-code 预置 2 条", func(t *testing.T) {
+	t.Run("claude-code 有 12 条", func(t *testing.T) {
 		mappings, total, err := repo.ListByFramework(ctx, "claude-code", 1, 10)
 		if err != nil {
 			t.Fatalf("ListByFramework failed: %v", err)
 		}
-		if total != 2 {
-			t.Errorf("expected 2, got %d", total)
+		if total != 12 {
+			t.Errorf("expected 12, got %d", total)
 		}
-		if len(mappings) != 2 {
-			t.Errorf("expected 2 items, got %d", len(mappings))
+		if len(mappings) != 10 {
+			t.Errorf("expected 10 items, got %d", len(mappings))
 		}
 	})
 

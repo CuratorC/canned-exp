@@ -92,16 +92,16 @@ func TestFrameworkMappingService_ListByFramework(t *testing.T) {
 	svc := setupMappingService(t)
 	ctx := context.Background()
 
-	t.Run("openclaw 有 6 条", func(t *testing.T) {
+	t.Run("openclaw 有 16 条", func(t *testing.T) {
 		mappings, total, err := svc.ListByFramework(ctx, "openclaw", 1, 10)
 		if err != nil {
 			t.Fatalf("ListByFramework failed: %v", err)
 		}
-		if total != 6 {
-			t.Errorf("expected 6, got %d", total)
+		if total != 16 {
+			t.Errorf("expected 16, got %d", total)
 		}
-		if len(mappings) != 6 {
-			t.Errorf("expected 6 items, got %d", len(mappings))
+		if len(mappings) != 10 {
+			t.Errorf("expected 10 items, got %d", len(mappings))
 		}
 	})
 
