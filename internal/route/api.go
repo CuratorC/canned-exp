@@ -6,6 +6,7 @@ import (
 	mcpgw "canned-exp/internal/mcp"
 	httpctrl "canned-exp/internal/http/controller"
 	middlewares "canned-exp/internal/http/middleware"
+	"canned-exp/internal/renderer"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +28,7 @@ func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 	authGroup.POST("/api/search", httpctrl.SearchHandler(application.ExperienceService))
 
 	// MCP SSE（SDK http.Handler 用 gin.WrapH 包装）
-	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService))
+	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService, application.MemoryService, renderer.NewRegistry()))
 	authGroup.Any("/sse", gin.WrapH(sseServer))
 	authGroup.Any("/message", gin.WrapH(sseServer))
 

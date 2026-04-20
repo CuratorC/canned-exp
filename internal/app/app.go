@@ -19,5 +19,6 @@ type App struct {
 	PersonalityService  *service.PersonalityService
 	PersonalityKeyService *service.PersonalityKeyService
 	FrameworkMappingService *service.FrameworkMappingService
+	MemoryService         *service.MemoryService
 	Auth                *auth.Auth
 }

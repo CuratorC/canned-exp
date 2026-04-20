@@ -100,6 +100,18 @@ func (r *PersonalityGormRepo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (r *PersonalityGormRepo) ListAllByAgent(ctx context.Context, agentID uint) ([]model.Personality, error) {
+	var personalities []model.Personality
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ?", agentID).
+		Order("key_id ASC").
+		Find(&personalities).Error
+	if err != nil {
+		return nil, cerr.Wrap(err, "list all personalities by agent")
+	}
+	return personalities, nil
+}
+
 func (r *PersonalityGormRepo) ListByAgent(ctx context.Context, agentID uint, page, pageSize int) ([]model.Personality, int, error) {
 	db := r.db.WithContext(ctx).Model(&model.Personality{}).Where("agent_id = ?", agentID)
 

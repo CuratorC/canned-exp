@@ -7,6 +7,7 @@ import (
 
 	"canned-exp/internal/model"
 	"canned-exp/internal/mcp"
+	"canned-exp/internal/renderer"
 	"canned-exp/internal/service"
 
 	"github.com/bytedance/sonic"
@@ -22,12 +23,14 @@ type Server struct {
 	agentSvc          *service.AgentService
 	personalitySvc    *service.PersonalityService
 	personalityKeySvc *service.PersonalityKeyService
+	memorySvc         *service.MemoryService
+	rendererRegistry  *renderer.Registry
 	tools             []ToolDefinition
 }
 
 // NewServer 创建 MCP Controller
-func NewServer(svc *service.ExperienceService, agentSvc *service.AgentService, personalitySvc *service.PersonalityService, personalityKeySvc *service.PersonalityKeyService) *Server {
-	s := &Server{svc: svc, agentSvc: agentSvc, personalitySvc: personalitySvc, personalityKeySvc: personalityKeySvc}
+func NewServer(svc *service.ExperienceService, agentSvc *service.AgentService, personalitySvc *service.PersonalityService, personalityKeySvc *service.PersonalityKeyService, memorySvc *service.MemoryService, reg *renderer.Registry) *Server {
+	s := &Server{svc: svc, agentSvc: agentSvc, personalitySvc: personalitySvc, personalityKeySvc: personalityKeySvc, memorySvc: memorySvc, rendererRegistry: reg}
 	s.registerTools()
 	return s
 }
@@ -176,10 +179,10 @@ func (s *Server) registerTools() {
 			Name:        "set_personality",
 			ReadOnly:    false,
 			Destructive: false,
-			Description: "为 Agent 设置人格属性。同一 agent_id + key_id 重复设置会更新（Upsert 语义）。",
+			Description: "为 Agent 设置人格属性。通过 key_name 指定属性，同一 agent_id + key_name 重复设置会更新（Upsert 语义）。可用 key_name 通过 list_personality_keys 查看。",
 			Params: []ParamDef{
 				{Name: "agent_id", Type: "number", Required: true, Description: "所属 Agent ID"},
-				{Name: "key_id", Type: "number", Required: true, Description: "PersonalityKey ID"},
+				{Name: "key_name", Type: "string", Required: true, Description: "属性名（如 system_prompt、name、language_style 等）"},
 				{Name: "value", Type: "string", Required: true, Description: "属性值"},
 				{Name: "type", Type: "string", Required: false, Description: "值类型：string/text/number/boolean（默认 string）"},
 			},
@@ -245,6 +248,80 @@ func (s *Server) registerTools() {
 				{Name: "description", Type: "string", Required: false, Description: "属性说明"},
 			},
 		},
+		// --- Framework Render 工具 ---
+		{
+			Name:        "render_personality",
+			ReadOnly:    true,
+			Destructive: false,
+			Description: `将 Agent 的人格属性渲染为指定框架的配置文件内容。
+返回 Markdown 格式的配置文件内容，可直接写入对应的配置文件。
+支持的框架：openclaw（SOUL.md/IDENTITY.md/AGENTS.md/MEMORY.md/TOOLS.md/USER.md）、claude-code（CLAUDE.md）。`,
+			Params: []ParamDef{
+				{Name: "agent_id", Type: "number", Required: true, Description: "Agent ID"},
+				{Name: "framework", Type: "string", Required: true, Description: "目标框架名称（如 openclaw、claude-code）"},
+				{Name: "config_path", Type: "string", Required: false, Description: "指定只返回某一个配置文件（如 SOUL.md）；不传则返回该框架所有配置文件"},
+			},
+		},
+			// --- Memory 工具 ---
+			{
+				Name:        "save_memory",
+				ReadOnly:    false,
+				Destructive: false,
+				Description: "保存 Agent 的长期记忆。同一 agent_id + path 已存在时更新内容（Upsert 语义）。记忆按路径组织，如 rules/affection、daily/2026-04-18、status/current。适合存储规则、日记、状态文件等大量文本内容。",
+				Params: []ParamDef{
+					{Name: "agent_id", Type: "number", Required: true, Description: "所属 Agent ID"},
+					{Name: "path", Type: "string", Required: true, Description: "记忆路径（如 rules/affection、daily/2026-04-18）"},
+					{Name: "content", Type: "string", Required: true, Description: "记忆内容"},
+					{Name: "title", Type: "string", Required: false, Description: "标题（可选）"},
+					{Name: "memory_date", Type: "string", Required: false, Description: "日期（格式 YYYY-MM-DD，可选）"},
+				},
+			},
+			{
+				Name:        "get_memory",
+				ReadOnly:    true,
+				Destructive: false,
+				Description: "通过 agent_id 和路径获取一条记忆的完整内容。",
+				Params: []ParamDef{
+					{Name: "agent_id", Type: "number", Required: true, Description: "Agent ID"},
+					{Name: "path", Type: "string", Required: true, Description: "记忆路径"},
+				},
+			},
+			{
+				Name:        "list_memories",
+				ReadOnly:    true,
+				Destructive: false,
+				Description: "列出指定 Agent 的记忆。支持三种过滤模式：按路径前缀、按日期范围、或两者组合。",
+				Params: []ParamDef{
+					{Name: "agent_id", Type: "number", Required: true, Description: "Agent ID"},
+					{Name: "path_prefix", Type: "string", Required: false, Description: "路径前缀过滤（如 rules/、daily/）"},
+					{Name: "from_date", Type: "string", Required: false, Description: "起始日期（YYYY-MM-DD，含）"},
+					{Name: "to_date", Type: "string", Required: false, Description: "结束日期（YYYY-MM-DD，含）"},
+					{Name: "page", Type: "number", Required: false, Description: "页码（默认 1）"},
+					{Name: "pageSize", Type: "number", Required: false, Description: "每页数量（默认 20）"},
+				},
+			},
+			{
+				Name:        "search_memories",
+				ReadOnly:    true,
+				Destructive: false,
+				Description: "在指定 Agent 的记忆中搜索内容。匹配标题和内容（文本搜索）。",
+				Params: []ParamDef{
+					{Name: "agent_id", Type: "number", Required: true, Description: "Agent ID"},
+					{Name: "query", Type: "string", Required: true, Description: "搜索关键词"},
+					{Name: "page", Type: "number", Required: false, Description: "页码（默认 1）"},
+					{Name: "pageSize", Type: "number", Required: false, Description: "每页数量（默认 20）"},
+				},
+			},
+			{
+				Name:        "delete_memory",
+				ReadOnly:    false,
+				Destructive: true,
+				Description: "删除指定 Agent 的一条记忆。",
+				Params: []ParamDef{
+					{Name: "agent_id", Type: "number", Required: true, Description: "Agent ID"},
+					{Name: "path", Type: "string", Required: true, Description: "要删除的记忆路径"},
+				},
+			},
 	}
 }
 
@@ -290,6 +367,18 @@ func (s *Server) CallTool(ctx context.Context, name string, params map[string]in
 		return s.handleListPersonalityKeys(ctx, params)
 	case "register_personality_key":
 		return s.handleRegisterPersonalityKey(ctx, params)
+	case "render_personality":
+		return s.handleRenderPersonality(ctx, params)
+		case "save_memory":
+			return s.handleSaveMemory(ctx, params)
+		case "get_memory":
+			return s.handleGetMemory(ctx, params)
+		case "list_memories":
+			return s.handleListMemories(ctx, params)
+		case "search_memories":
+			return s.handleSearchMemories(ctx, params)
+		case "delete_memory":
+			return s.handleDeleteMemory(ctx, params)
 	default:
 		return CallToolResult{IsError: true, Content: fmt.Sprintf("unknown tool: %s", name)}, nil
 	}
@@ -560,18 +649,23 @@ func (s *Server) handleSetPersonality(ctx context.Context, params map[string]int
 	if agentID == 0 {
 		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
 	}
-	keyID := toUint(params["key_id"])
-	if keyID == 0 {
-		return CallToolResult{IsError: true, Content: "parameter 'key_id' is required"}, nil
+	keyName, _ := params["key_name"].(string)
+	if keyName == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'key_name' is required"}, nil
 	}
 	value, _ := params["value"].(string)
 	if value == "" {
 		return CallToolResult{IsError: true, Content: "parameter 'value' is required"}, nil
 	}
 
+	key, err := s.personalityKeySvc.GetByName(ctx, keyName)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: fmt.Sprintf("key_name %q not found: %v", keyName, err)}, nil
+	}
+
 	p := &model.Personality{
 		AgentID: agentID,
-		KeyID:   keyID,
+		KeyID:   key.ID,
 		Value:   value,
 	}
 	if typ, ok := params["type"].(string); ok {
@@ -711,6 +805,208 @@ func (s *Server) handleRegisterPersonalityKey(ctx context.Context, params map[st
 	}
 
 	return CallToolResult{Content: fmt.Sprintf("%d", id)}, nil
+}
+
+// --- Framework Render 工具 Handler ---
+
+func (s *Server) handleRenderPersonality(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+	framework, _ := params["framework"].(string)
+	if framework == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'framework' is required"}, nil
+	}
+
+	agent, err := s.agentSvc.Get(ctx, agentID)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: fmt.Sprintf("agent not found: %v", err)}, nil
+	}
+
+	personalities, err := s.personalitySvc.ListAllByAgent(ctx, agentID)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	keys, _, err := s.personalityKeySvc.List(ctx, 1, 100)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+	keyMap := make(map[uint]string, len(keys))
+	for _, k := range keys {
+		keyMap[k.ID] = k.KeyName
+	}
+
+	personalityMap := make(map[string]string, len(personalities))
+	for _, p := range personalities {
+		if name, ok := keyMap[p.KeyID]; ok {
+			personalityMap[name] = p.Value
+		}
+	}
+
+	files := s.rendererRegistry.Render(framework, agent.Name, personalityMap)
+
+	configPath, _ := params["config_path"].(string)
+	if configPath != "" {
+		for _, f := range files {
+			if f.ConfigPath == configPath {
+				return CallToolResult{Content: f.Content}, nil
+			}
+		}
+		return CallToolResult{IsError: true, Content: fmt.Sprintf("config_path %q not found", configPath)}, nil
+	}
+
+	result := make(map[string]string, len(files))
+	for _, f := range files {
+		result[f.ConfigPath] = f.Content
+	}
+	data, _ := sonic.MarshalIndent(result, "", "  ")
+	return CallToolResult{Content: string(data)}, nil
+}
+
+// --- Memory 工具 Handler ---
+
+func (s *Server) handleSaveMemory(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+	path, _ := params["path"].(string)
+	if path == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'path' is required"}, nil
+	}
+	content, _ := params["content"].(string)
+	if content == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'content' is required"}, nil
+	}
+
+	m := &model.Memory{
+		AgentID: agentID,
+		Path:    path,
+		Content: content,
+	}
+	if title, ok := params["title"].(string); ok {
+		m.Title = title
+	}
+	if memoryDate, ok := params["memory_date"].(string); ok {
+		m.MemoryDate = memoryDate
+	}
+
+	id, err := s.memorySvc.Set(ctx, m)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	return CallToolResult{Content: fmt.Sprintf("%d", id)}, nil
+}
+
+func (s *Server) handleGetMemory(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+	path, _ := params["path"].(string)
+	if path == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'path' is required"}, nil
+	}
+
+	m, err := s.memorySvc.GetByPath(ctx, agentID, path)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	data, _ := sonic.MarshalIndent(m, "", "  ")
+	return CallToolResult{Content: string(data)}, nil
+}
+
+func (s *Server) handleListMemories(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+
+	page := 0
+	pageSize := 0
+	if pageVal, ok := params["page"]; ok {
+		page = toInt(pageVal)
+	}
+	if pageSizeVal, ok := params["pageSize"]; ok {
+		pageSize = toInt(pageSizeVal)
+	}
+
+	pathPrefix, _ := params["path_prefix"].(string)
+	fromDate, _ := params["from_date"].(string)
+	toDate, _ := params["to_date"].(string)
+
+	var memories []model.Memory
+	var total int
+	var err error
+
+	if fromDate != "" || toDate != "" {
+		memories, total, err = s.memorySvc.ListByDateRange(ctx, agentID, fromDate, toDate, page, pageSize)
+	} else {
+		memories, total, err = s.memorySvc.List(ctx, agentID, pathPrefix, page, pageSize)
+	}
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	result := map[string]interface{}{
+		"total":   total,
+		"results": memories,
+	}
+	data, _ := sonic.MarshalIndent(result, "", "  ")
+	return CallToolResult{Content: string(data)}, nil
+}
+
+func (s *Server) handleSearchMemories(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+	query, _ := params["query"].(string)
+	if query == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'query' is required"}, nil
+	}
+
+	page := 0
+	pageSize := 0
+	if pageVal, ok := params["page"]; ok {
+		page = toInt(pageVal)
+	}
+	if pageSizeVal, ok := params["pageSize"]; ok {
+		pageSize = toInt(pageSizeVal)
+	}
+
+	memories, total, err := s.memorySvc.Search(ctx, agentID, query, page, pageSize)
+	if err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	result := map[string]interface{}{
+		"total":   total,
+		"results": memories,
+	}
+	data, _ := sonic.MarshalIndent(result, "", "  ")
+	return CallToolResult{Content: string(data)}, nil
+}
+
+func (s *Server) handleDeleteMemory(ctx context.Context, params map[string]interface{}) (CallToolResult, error) {
+	agentID := toUint(params["agent_id"])
+	if agentID == 0 {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
+	path, _ := params["path"].(string)
+	if path == "" {
+		return CallToolResult{IsError: true, Content: "parameter 'path' is required"}, nil
+	}
+
+	if err := s.memorySvc.Delete(ctx, agentID, path); err != nil {
+		return CallToolResult{IsError: true, Content: err.Error()}, nil
+	}
+
+	return CallToolResult{Content: "deleted"}, nil
 }
 
 func toInt(v interface{}) int {

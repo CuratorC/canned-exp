@@ -9,6 +9,7 @@ import (
 	_ "canned-exp/internal/database/migrations/main"
 	"canned-exp/internal/repository"
 	"canned-exp/internal/service"
+	"canned-exp/internal/renderer"
 	"canned-exp/internal/vectorstore"
 	mcpgw "canned-exp/internal/mcp"
 
@@ -114,7 +115,7 @@ func TestTransport_ConvertTool(t *testing.T) {
 	svc := setupTransportTestSvc(t)
 	agentSvc := setupTransportAgentSvc(t)
 	pSvc, pkSvc := setupTransportPersonalitySvc(t)
-	ourServer := NewServer(svc, agentSvc, pSvc, pkSvc)
+	ourServer := NewServer(svc, agentSvc, pSvc, pkSvc, service.NewMemoryService(repository.NewMemoryGormRepo(nil)), renderer.NewRegistry())
 
 	t.Run("所有工具都能成功转换为 MCP SDK Tool", func(t *testing.T) {
 		for _, td := range ourServer.ListTools() {
@@ -172,7 +173,7 @@ func TestTransport_BuildMCPServer(t *testing.T) {
 	t.Run("BuildMCPServer 不 panic 且返回有效实例", func(t *testing.T) {
 		agentSvc := setupTransportAgentSvc(t)
 		pSvc, pkSvc := setupTransportPersonalitySvc(t)
-			expServer := NewServer(svc, agentSvc, pSvc, pkSvc)
+			expServer := NewServer(svc, agentSvc, pSvc, pkSvc, service.NewMemoryService(repository.NewMemoryGormRepo(nil)), renderer.NewRegistry())
 		mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", expServer)
 		if mcpServer == nil {
 			t.Fatal("BuildMCPServer 返回 nil")
@@ -182,7 +183,7 @@ func TestTransport_BuildMCPServer(t *testing.T) {
 	t.Run("NewStdioServer 可创建", func(t *testing.T) {
 		agentSvc := setupTransportAgentSvc(t)
 		pSvc, pkSvc := setupTransportPersonalitySvc(t)
-			expServer := NewServer(svc, agentSvc, pSvc, pkSvc)
+			expServer := NewServer(svc, agentSvc, pSvc, pkSvc, service.NewMemoryService(repository.NewMemoryGormRepo(nil)), renderer.NewRegistry())
 		stdioServer := mcpgw.NewStdioServer("canned-exp", "1.0.0", expServer)
 		if stdioServer == nil {
 			t.Fatal("NewStdioServer 返回 nil")

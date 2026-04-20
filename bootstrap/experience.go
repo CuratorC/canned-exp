@@ -63,3 +63,9 @@ func SetupFrameworkMappingService(db *database.DB) *service.FrameworkMappingServ
 	pkRepo := repository.NewPersonalityKeyGormRepo(db.Gorm)
 	return service.NewFrameworkMappingService(fmRepo, pkRepo)
 }
+
+// SetupMemoryService 组装 Memory 的依赖链
+func SetupMemoryService(db *database.DB) *service.MemoryService {
+	mRepo := repository.NewMemoryGormRepo(db.Gorm)
+	return service.NewMemoryService(mRepo)
+}

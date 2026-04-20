@@ -235,3 +235,39 @@ func TestPersonalityGormRepo_ListByAgent(t *testing.T) {
 		}
 	})
 }
+
+func TestPersonalityGormRepo_ListAllByAgent(t *testing.T) {
+	repo, _, agentRepo := setupPersonalityRepo(t)
+	ctx := context.Background()
+
+	agentID, _ := agentRepo.Save(ctx, &model.Agent{Name: "test-agent"})
+	agent2ID, _ := agentRepo.Save(ctx, &model.Agent{Name: "other-agent"})
+
+	repo.Save(ctx, &model.Personality{AgentID: agentID, KeyID: 1, Value: "值1"})
+	repo.Save(ctx, &model.Personality{AgentID: agentID, KeyID: 3, Value: "值3"})
+	repo.Save(ctx, &model.Personality{AgentID: agent2ID, KeyID: 1, Value: "其他agent"})
+
+	t.Run("返回指定 agent 的全部记录", func(t *testing.T) {
+		list, err := repo.ListAllByAgent(ctx, agentID)
+		if err != nil {
+			t.Fatalf("ListAllByAgent failed: %v", err)
+		}
+		if len(list) != 2 {
+			t.Errorf("expected 2, got %d", len(list))
+		}
+	})
+
+	t.Run("按 key_id 排序", func(t *testing.T) {
+		list, _ := repo.ListAllByAgent(ctx, agentID)
+		if list[0].KeyID > list[1].KeyID {
+			t.Errorf("expected ascending key_id order")
+		}
+	})
+
+	t.Run("空 agent 返回空", func(t *testing.T) {
+		list, _ := repo.ListAllByAgent(ctx, 999)
+		if len(list) != 0 {
+			t.Errorf("expected 0, got %d", len(list))
+		}
+	})
+}

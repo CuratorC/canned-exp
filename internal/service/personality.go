@@ -54,6 +54,10 @@ func (s *PersonalityService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *PersonalityService) ListAllByAgent(ctx context.Context, agentID uint) ([]model.Personality, error) {
+	return s.repo.ListAllByAgent(ctx, agentID)
+}
+
 func (s *PersonalityService) ListByAgent(ctx context.Context, agentID uint, page, pageSize int) ([]model.Personality, int, error) {
 	if page <= 0 {
 		page = DefaultPersonalityPage

@@ -6,6 +6,7 @@ import (
 
 	"canned-exp/internal/repository"
 	"canned-exp/internal/service"
+	"canned-exp/internal/renderer"
 	_ "canned-exp/internal/database/migrations/main"
 	"canned-exp/internal/vectorstore"
 	mcpgw "canned-exp/internal/mcp"
@@ -53,8 +54,10 @@ func setupSSETest(t *testing.T) (*mcpclient.Client, func()) {
 		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
 		pSvc := service.NewPersonalityService(pRepo, pkRepo)
 		pkSvc := service.NewPersonalityKeyService(pkRepo)
+		mRepo := repository.NewMemoryGormRepo(gormDB)
+		mSvc := service.NewMemoryService(mRepo)
 
-	mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc))
+	mcpServer := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc, mSvc, renderer.NewRegistry()))
 	ts := server.NewTestServer(mcpServer)
 
 	client, err := mcpclient.NewSSEMCPClient(ts.URL + "/sse")
@@ -117,8 +120,8 @@ func TestSSEIntegration_Handshake(t *testing.T) {
 		if err != nil {
 			t.Fatalf("tools/list error: %v", err)
 		}
-		if len(toolsResult.Tools) != 18 {
-			t.Errorf("工具数量 = %d, want 18", len(toolsResult.Tools))
+		if len(toolsResult.Tools) != 24 {
+			t.Errorf("工具数量 = %d, want 24", len(toolsResult.Tools))
 		}
 		for _, tool := range toolsResult.Tools {
 			if tool.Name == "" || tool.Description == "" {

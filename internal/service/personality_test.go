@@ -223,3 +223,25 @@ func TestPersonalityService_ListByAgent(t *testing.T) {
 		}
 	})
 }
+
+func TestPersonalityService_ListAllByAgent(t *testing.T) {
+	svc, agentRepo := setupPersonalityService(t)
+	ctx := context.Background()
+
+	agentID, _ := agentRepo.Save(ctx, &model.Agent{Name: "test-agent"})
+	agent2ID, _ := agentRepo.Save(ctx, &model.Agent{Name: "other"})
+
+	svc.Set(ctx, &model.Personality{AgentID: agentID, KeyID: 1, Value: "v1"})
+	svc.Set(ctx, &model.Personality{AgentID: agentID, KeyID: 3, Value: "v3"})
+	svc.Set(ctx, &model.Personality{AgentID: agent2ID, KeyID: 1, Value: "other"})
+
+	t.Run("返回指定 agent 全部记录", func(t *testing.T) {
+		list, err := svc.ListAllByAgent(ctx, agentID)
+		if err != nil {
+			t.Fatalf("ListAllByAgent failed: %v", err)
+		}
+		if len(list) != 2 {
+			t.Errorf("expected 2, got %d", len(list))
+		}
+	})
+}

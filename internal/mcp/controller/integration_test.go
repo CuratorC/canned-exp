@@ -13,6 +13,7 @@ import (
 	_ "canned-exp/internal/database/migrations/main"
 	"canned-exp/internal/repository"
 	"canned-exp/internal/service"
+	"canned-exp/internal/renderer"
 	"canned-exp/internal/vectorstore"
 	mcpgw "canned-exp/internal/mcp"
 
@@ -95,9 +96,11 @@ func setupIntegrationTest(t *testing.T) (stdinWriter io.Writer, stdoutReader io.
 		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
 		pSvc := service.NewPersonalityService(pRepo, pkRepo)
 		pkSvc := service.NewPersonalityKeyService(pkRepo)
+		mRepo := repository.NewMemoryGormRepo(gormDB)
+		mSvc := service.NewMemoryService(mRepo)
 
 	// 创建 MCP Server（通过 mcpgw 桥接到 SDK）
-	sdkMCP := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc))
+	sdkMCP := mcpgw.BuildMCPServer("canned-exp", "1.0.0", NewServer(svc, agentSvc, pSvc, pkSvc, mSvc, renderer.NewRegistry()))
 	stdioServer := sdkserver.NewStdioServer(sdkMCP)
 
 	// 创建 stdio 管道
@@ -246,8 +249,8 @@ func TestMCPIntegration_ToolsList(t *testing.T) {
 		if !ok {
 			t.Fatal("响应缺少 tools 数组")
 		}
-		if len(tools) != 18 {
-			t.Errorf("工具数量 = %d, want 18", len(tools))
+		if len(tools) != 24 {
+			t.Errorf("工具数量 = %d, want 24", len(tools))
 		}
 
 		// 验证每个工具都有 name 和 description

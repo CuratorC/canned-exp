@@ -9,6 +9,7 @@ import (
 	"canned-exp/internal/embedding"
 	"canned-exp/internal/repository"
 	"canned-exp/internal/service"
+	"canned-exp/internal/renderer"
 	"canned-exp/internal/vectorstore"
 
 	"github.com/CuratorC/gocanned/database"
@@ -86,8 +87,10 @@ func testMCPServer(t *testing.T) *Server {
 		pkRepo := repository.NewPersonalityKeyGormRepo(gormDB)
 		pSvc := service.NewPersonalityService(pRepo, pkRepo)
 		pkSvc := service.NewPersonalityKeyService(pkRepo)
+		mRepo := repository.NewMemoryGormRepo(gormDB)
+		mSvc := service.NewMemoryService(mRepo)
 
-		return NewServer(expSvc, agentSvc, pSvc, pkSvc)
+		return NewServer(expSvc, agentSvc, pSvc, pkSvc, mSvc, renderer.NewRegistry())
 }
 
 // --- 工具注册测试 ---
@@ -482,8 +485,8 @@ func TestMCPServer_AgentTools(t *testing.T) {
 
 	t.Run("注册了 11 个工具", func(t *testing.T) {
 		tools := server.ListTools()
-		if len(tools) != 18 {
-			t.Errorf("工具数量 = %d, want 18", len(tools))
+		if len(tools) != 24 {
+			t.Errorf("工具数量 = %d, want 24", len(tools))
 		}
 	})
 
