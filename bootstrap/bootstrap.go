@@ -66,6 +66,7 @@ func NewApp() (*app.App, error) {
 	application.Auth = auth.NewAuth(auth.Config{
 		TOTPSecret: config.GetString("experience.totp_secret"),
 		SessionTTL: parseDuration(config.GetString("experience.session_ttl"), 24*time.Hour),
+		APIKey:     config.GetString("experience.api_key"),
 	})
 
 	// 外部可访问 URL（OAuth metadata 需要）

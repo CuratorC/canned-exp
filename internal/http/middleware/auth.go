@@ -30,6 +30,13 @@ func AuthMiddleware(authSvc *auth.Auth) gin.HandlerFunc {
 			return
 		}
 
+		// API Key 认证（供 Hook 等非 OAuth 客户端使用）
+		if authSvc.ValidateAPIKey(token) {
+			c.Set("auth_token", token)
+			c.Next()
+			return
+		}
+
 		if !authSvc.ValidateToken(token) {
 			setWWWAuthenticate(c)
 			response.Unauthorized(c, "未授权")

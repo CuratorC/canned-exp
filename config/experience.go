@@ -9,6 +9,7 @@ func init() {
 			"mcp_url":     config.Env("EXPERIENCE_MCP_URL", ""),
 			"totp_secret": config.Env("EXPERIENCE_TOTP_SECRET", ""),
 			"session_ttl": config.Env("EXPERIENCE_SESSION_TTL", "24h"),
+			"api_key":     config.Env("EXPERIENCE_API_KEY", ""),
 		}
 	})
 }

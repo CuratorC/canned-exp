@@ -21,6 +21,7 @@ var (
 type Config struct {
 	TOTPSecret string
 	SessionTTL time.Duration
+	APIKey     string
 }
 
 // Session 会话
@@ -85,6 +86,11 @@ func (a *Auth) ValidateTOTP(code string) bool {
 func (a *Auth) TOTPConfigured() bool {
 	return a.config.TOTPSecret != ""
 }
+
+	// ValidateAPIKey 校验 API Key
+	func (a *Auth) ValidateAPIKey(key string) bool {
+		return a.config.APIKey != "" && key == a.config.APIKey
+	}
 
 // CreateSession 创建会话，自动吊销同服务的旧 session
 func (a *Auth) CreateSession(service string) (string, time.Time) {
