@@ -3,11 +3,12 @@ module canned-exp
 go 1.26.1
 
 require (
-	github.com/CuratorC/gocanned v0.0.0
+	github.com/CuratorC/gocanned v0.0.1
 	github.com/bytedance/sonic v1.15.0
 	github.com/dromara/carbon/v2 v2.6.16
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.12.0
+	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.47.1
 	github.com/pquerna/otp v1.5.0
@@ -34,7 +35,6 @@ require (
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
@@ -84,5 +84,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/CuratorC/gocanned => ../gocanned
