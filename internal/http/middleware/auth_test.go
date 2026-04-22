@@ -3,6 +3,7 @@ package middlewares
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ func TestAuthMiddleware(t *testing.T) {
 	secret := generateTestSecret(t)
 	authSvc := auth.NewAuth(auth.Config{
 		TOTPSecret: secret,
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 
@@ -78,22 +78,9 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("API Key 不被中间件识别（仅 session token 有效）", func(t *testing.T) {
-		router, w := setupRouter(authSvc)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.Header.Set("Authorization", "Bearer test-api-key")
-		req.RemoteAddr = "203.0.113.1:12345"
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusUnauthorized {
-			t.Errorf("API Key 不应被中间件放行，status = %d", w.Code)
-		}
-	})
-
 	t.Run("过期 token 返回 401", func(t *testing.T) {
 		expiredAuthSvc := auth.NewAuth(auth.Config{
 			TOTPSecret: secret,
-			APIKey:     "test-api-key",
 			SessionTTL: -1 * time.Second,
 		})
 
@@ -107,6 +94,45 @@ func TestAuthMiddleware(t *testing.T) {
 
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("过期 token 应返回 401，status = %d", w.Code)
+		}
+	})
+
+	t.Run("401 响应包含 WWW-Authenticate 头", func(t *testing.T) {
+		router, w := setupRouter(authSvc)
+		req := httptest.NewRequest("POST", "/test", nil)
+		req.RemoteAddr = "203.0.113.1:12345"
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", w.Code)
+		}
+		wa := w.Header().Get("WWW-Authenticate")
+		if wa == "" {
+			t.Error("401 响应应包含 WWW-Authenticate 头")
+		}
+		if !strings.Contains(wa, "Bearer") {
+			t.Errorf("WWW-Authenticate 应包含 Bearer, got %s", wa)
+		}
+		if !strings.Contains(wa, "resource_metadata") {
+			t.Errorf("WWW-Authenticate 应包含 resource_metadata, got %s", wa)
+		}
+		if !strings.Contains(wa, ".well-known/oauth-protected-resource") {
+			t.Errorf("WWW-Authenticate 应指向 well-known 端点, got %s", wa)
+		}
+	})
+
+	t.Run("本地回环免认证时不设置 WWW-Authenticate 头", func(t *testing.T) {
+		router, w := setupRouter(authSvc)
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		wa := w.Header().Get("WWW-Authenticate")
+		if wa != "" {
+			t.Errorf("回环免认证不应设置 WWW-Authenticate, got %s", wa)
 		}
 	})
 }

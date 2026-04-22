@@ -11,7 +11,6 @@ func TestAuth_ValidateTOTP(t *testing.T) {
 	secret := generateTestSecret(t)
 	auth := NewAuth(Config{
 		TOTPSecret: secret,
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 
@@ -58,7 +57,6 @@ func TestAuth_ValidateTOTP(t *testing.T) {
 func TestAuth_Session(t *testing.T) {
 	auth := NewAuth(Config{
 		TOTPSecret: "dummy",
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 
@@ -75,7 +73,6 @@ func TestAuth_Session(t *testing.T) {
 	t.Run("过期 session 无效", func(t *testing.T) {
 		expiredAuth := NewAuth(Config{
 			TOTPSecret: "dummy",
-			APIKey:     "test-api-key",
 			SessionTTL: -1 * time.Second, // 立即过期
 		})
 		token, _ := expiredAuth.CreateSession("service-a")
@@ -118,7 +115,6 @@ func TestAuth_Session(t *testing.T) {
 func TestAuth_RevokeService(t *testing.T) {
 	auth := NewAuth(Config{
 		TOTPSecret: "dummy",
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 
@@ -155,30 +151,3 @@ func TestAuth_RevokeService(t *testing.T) {
 	})
 }
 
-// --- API Key 单元测试 ---
-
-func TestAuth_ValidateAPIKey(t *testing.T) {
-	auth := NewAuth(Config{
-		TOTPSecret: "dummy",
-		APIKey:     "my-secret-key-123",
-		SessionTTL: time.Hour,
-	})
-
-	t.Run("正确的 key 验证通过", func(t *testing.T) {
-		if !auth.ValidateAPIKey("my-secret-key-123") {
-			t.Error("正确的 API Key 应验证通过")
-		}
-	})
-
-	t.Run("错误的 key 验证失败", func(t *testing.T) {
-		if auth.ValidateAPIKey("wrong-key") {
-			t.Error("错误的 API Key 不应验证通过")
-		}
-	})
-
-	t.Run("空 key 验证失败", func(t *testing.T) {
-		if auth.ValidateAPIKey("") {
-			t.Error("空 API Key 不应验证通过")
-		}
-	})
-}

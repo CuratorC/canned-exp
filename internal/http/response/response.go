@@ -131,3 +131,21 @@ func defaultMessage(defaultMsg string, msg ...string) (message string) {
 	}
 	return
 }
+
+// --- OAuth RFC 标准响应函数 ---
+// OAuth 端点使用 RFC 6749/7591 标准格式 {"error": "...", "error_description": "..."}
+// 与 API 端点的 {"success": true, "data": ...} 格式独立
+
+// OAuthError 返回 RFC 6749 标准错误格式
+func OAuthError(c *gin.Context, status int, errorCode string, desc ...string) {
+	h := gin.H{"error": errorCode}
+	if len(desc) > 0 {
+		h["error_description"] = desc[0]
+	}
+	c.AbortWithStatusJSON(status, h)
+}
+
+// OAuthJSON 返回 OAuth 成功响应（直接 JSON，不包裹 success/data）
+func OAuthJSON(c *gin.Context, status int, data gin.H) {
+	c.JSON(status, data)
+}

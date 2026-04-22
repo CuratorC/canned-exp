@@ -6,6 +6,7 @@ import (
 	"canned-exp/internal/auth"
 	"canned-exp/internal/helper"
 	"canned-exp/internal/http/response"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,12 +24,14 @@ func AuthMiddleware(authSvc *auth.Auth) gin.HandlerFunc {
 
 		token := extractBearerToken(c)
 		if token == "" {
+			setWWWAuthenticate(c)
 			response.Unauthorized(c, "未授权")
 			c.Abort()
 			return
 		}
 
 		if !authSvc.ValidateToken(token) {
+			setWWWAuthenticate(c)
 			response.Unauthorized(c, "未授权")
 			c.Abort()
 			return
@@ -38,6 +41,19 @@ func AuthMiddleware(authSvc *auth.Auth) gin.HandlerFunc {
 		c.Set("auth_token", token)
 		c.Next()
 	}
+}
+
+// setWWWAuthenticate 设置 RFC 9728 WWW-Authenticate 头，引导客户端进行 OAuth 发现
+func setWWWAuthenticate(c *gin.Context) {
+	scheme := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	host := c.Request.Host
+	baseURL := scheme + "://" + host
+	c.Header("WWW-Authenticate",
+		`Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource"`,
+	)
 }
 
 // extractBearerToken 从 Authorization 头提取 Bearer token

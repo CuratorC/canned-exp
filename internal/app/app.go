@@ -13,12 +13,13 @@ import (
 // App holds all application-level dependencies, assembled by bootstrap
 // and passed explicitly to the layers that need them.
 type App struct {
-	DB                  *database.DB
-	ExperienceService   *service.ExperienceService
-	AgentService        *service.AgentService
-	PersonalityService  *service.PersonalityService
+	DB                    *database.DB
+	ExperienceService     *service.ExperienceService
+	AgentService          *service.AgentService
+	PersonalityService    *service.PersonalityService
 	PersonalityKeyService *service.PersonalityKeyService
 	FrameworkMappingService *service.FrameworkMappingService
 	MemoryService         *service.MemoryService
-	Auth                *auth.Auth
+	Auth                  *auth.Auth
+	BaseURL               string // 服务器外部可访问的 URL
 }

@@ -18,9 +18,24 @@ func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 		c.JSON(200, gin.H{})
 	})
 
+	r.GET("health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// OAuth controller
+	oauthCtrl := httpctrl.NewOAuthController(application.Auth, application.BaseURL)
+
 	// 免认证路由
 	r.GET("/api/auth/guide", httpctrl.GuideHandler())
 	r.POST("/api/auth/login", httpctrl.LoginHandler(application.Auth))
+
+	// OAuth 2.0 端点（免认证）
+	r.GET("/.well-known/oauth-protected-resource", oauthCtrl.ProtectedResourceMetadata)
+	r.GET("/.well-known/oauth-authorization-server", oauthCtrl.AuthorizationServerMetadata)
+	r.POST("/oauth/register", oauthCtrl.Register)
+	r.GET("/oauth/authorize", oauthCtrl.AuthorizeGet)
+	r.POST("/oauth/authorize", oauthCtrl.AuthorizePost)
+	r.POST("/oauth/token", oauthCtrl.Token)
 
 	// 需认证路由
 	authGroup := r.Group("", middlewares.AuthMiddleware(application.Auth))
@@ -31,6 +46,10 @@ func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 	sseServer := mcpgw.NewSSEServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService, application.MemoryService, renderer.NewRegistry()))
 	authGroup.Any("/sse", gin.WrapH(sseServer))
 	authGroup.Any("/message", gin.WrapH(sseServer))
+
+	// MCP Streamable HTTP（供 Hermes 等新客户端使用）
+	streamableServer := mcpgw.NewStreamableHTTPServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService, application.MemoryService, renderer.NewRegistry()))
+	authGroup.Any("/mcp", gin.WrapH(streamableServer))
 
 	// v1 Web API 路由组
 	v1 := r.Group("/v1")

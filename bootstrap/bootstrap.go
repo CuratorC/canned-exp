@@ -28,14 +28,9 @@ func SetupCommand(envSuffix string) (err error) {
 	return nil
 }
 
-// NewApp initializes infrastructure (Redis, Database, ExperienceService, Auth) and returns the App dependency container.
+// NewApp initializes infrastructure (Database, ExperienceService, Auth) and returns the App dependency container.
 func NewApp() (*app.App, error) {
 	application := &app.App{}
-
-	err := SetupRedis()
-	if err != nil {
-		return nil, cerr.Wrap(err, "failed to SetupRedis")
-	}
 
 	db, err := SetupDatabase(enum.DatabaseNameMain)
 	if err != nil {
@@ -70,9 +65,11 @@ func NewApp() (*app.App, error) {
 	// 组装认证依赖
 	application.Auth = auth.NewAuth(auth.Config{
 		TOTPSecret: config.GetString("experience.totp_secret"),
-		APIKey:     config.GetString("experience.api_key"),
 		SessionTTL: parseDuration(config.GetString("experience.session_ttl"), 24*time.Hour),
 	})
+
+	// 外部可访问 URL（OAuth metadata 需要）
+	application.BaseURL = config.GetString("experience.mcp_url")
 
 	return application, nil
 }
