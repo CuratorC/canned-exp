@@ -1,0 +1,14 @@
+services:
+  canned-exp:
+    image: canned-exp:latest
+    network_mode: host
+    volumes:
+      - ./storage:/app/storage
+    environment:
+      - APP_PORT=3100
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-embedding-3}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-2048}
+      - EXPERIENCE_TOTP_SECRET=${EXPERIENCE_TOTP_SECRET}
+    restart: unless-stopped

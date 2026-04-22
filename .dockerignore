@@ -1,0 +1,14 @@
+.env
+.git
+.github
+.idea
+.vscode
+.claude
+bin/
+storage/
+docs/
+plugins/
+*.test
+*.out
+*.bin
+canned-exp.bin
