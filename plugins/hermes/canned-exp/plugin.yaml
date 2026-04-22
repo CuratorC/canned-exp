@@ -1,0 +1,5 @@
+name: canned-exp
+version: "1.0.0"
+description: "Recall relevant experiences from canned-exp knowledge base before each LLM turn"
+provides_hooks:
+  - pre_llm_call
