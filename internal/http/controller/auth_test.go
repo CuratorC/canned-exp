@@ -20,7 +20,6 @@ func TestLoginHandler(t *testing.T) {
 	secret := generateTestSecret(t)
 	authSvc := auth.NewAuth(auth.Config{
 		TOTPSecret: secret,
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 
@@ -91,7 +90,6 @@ func TestLoginHandler(t *testing.T) {
 	t.Run("未配置 TOTP secret 返回 403", func(t *testing.T) {
 		noTotpAuthSvc := auth.NewAuth(auth.Config{
 			TOTPSecret: "",
-			APIKey:     "test-api-key",
 			SessionTTL: time.Hour,
 		})
 		router, w := setupRouter(noTotpAuthSvc)
@@ -115,7 +113,6 @@ func TestRevokeHandler(t *testing.T) {
 
 	authSvc := auth.NewAuth(auth.Config{
 		TOTPSecret: "dummy",
-		APIKey:     "test-api-key",
 		SessionTTL: time.Hour,
 	})
 

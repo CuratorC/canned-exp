@@ -106,3 +106,9 @@ func NewSSEServer(name, version string, provider ToolProvider) *server.SSEServer
 	mcpServer := BuildMCPServer(name, version, provider)
 	return server.NewSSEServer(mcpServer)
 }
+
+// NewStreamableHTTPServer 创建基于 Streamable HTTP 传输的 MCP Server
+func NewStreamableHTTPServer(name, version string, provider ToolProvider) *server.StreamableHTTPServer {
+	mcpServer := BuildMCPServer(name, version, provider)
+	return server.NewStreamableHTTPServer(mcpServer)
+}
