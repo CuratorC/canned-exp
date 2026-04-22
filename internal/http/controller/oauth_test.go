@@ -45,6 +45,7 @@ func TestOAuth_ProtectedResourceMetadata(t *testing.T) {
 	router, w := setupOAuthRouter(nil, ctrl)
 
 	req := httptest.NewRequest("GET", "/.well-known/oauth-protected-resource", nil)
+	req.Host = "testserver:3100"
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -78,6 +79,7 @@ func TestOAuth_AuthorizationServerMetadata(t *testing.T) {
 	router, w := setupOAuthRouter(nil, ctrl)
 
 	req := httptest.NewRequest("GET", "/.well-known/oauth-authorization-server", nil)
+	req.Host = "testserver:3100"
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -168,7 +170,7 @@ func TestOAuth_AuthorizeGet(t *testing.T) {
 	router, _ := setupOAuthRouter(authSvc, ctrl)
 
 	// 先注册一个客户端
-	client := authSvc.RegisterClient("test-app", []string{"http://localhost:9090/callback"})
+	client := authSvc.RegisterClient("test-app", []string{"http://localhost:9090/callback"}, "client_secret_post")
 
 	t.Run("合法参数返回 200 HTML 页面", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -227,7 +229,7 @@ func TestOAuth_AuthorizePost(t *testing.T) {
 	authSvc := auth.NewAuth(auth.Config{TOTPSecret: secret, SessionTTL: time.Hour})
 	ctrl := NewOAuthController(authSvc, testBaseURL)
 	router, _ := setupOAuthRouter(authSvc, ctrl)
-	client := authSvc.RegisterClient("post-test", []string{"http://localhost:9090/callback"})
+	client := authSvc.RegisterClient("post-test", []string{"http://localhost:9090/callback"}, "client_secret_post")
 
 	t.Run("TOTP 错误重新渲染页面并提示", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -293,7 +295,7 @@ func TestOAuth_Token(t *testing.T) {
 	router, _ := setupOAuthRouter(authSvc, ctrl)
 
 	// 先注册客户端并生成授权码
-	client := authSvc.RegisterClient("token-test", []string{"http://localhost:9090/callback"})
+	client := authSvc.RegisterClient("token-test", []string{"http://localhost:9090/callback"}, "client_secret_post")
 	authCode := authSvc.CreateAuthorizationCode(client.ClientID, "http://localhost:9090/callback", "", "oauth:svc")
 
 	t.Run("正常交换返回 access_token", func(t *testing.T) {

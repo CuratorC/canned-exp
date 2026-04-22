@@ -37,6 +37,7 @@ type OAuthClient struct {
 	ClientSecret string
 	RedirectURIs []string
 	ClientName   string
+	AuthMethod   string // "client_secret_post", "client_secret_basic", "none"
 	CreatedAt    time.Time
 }
 
@@ -131,7 +132,7 @@ func (a *Auth) RevokeService(service string) {
 // --- OAuth Dynamic Client Registration (RFC 7591) ---
 
 // RegisterClient 注册新的 OAuth 客户端
-func (a *Auth) RegisterClient(clientName string, redirectURIs []string) *OAuthClient {
+func (a *Auth) RegisterClient(clientName string, redirectURIs []string, authMethod string) *OAuthClient {
 	clientID := generateRandomHex(16)
 	clientSecret := generateRandomHex(32)
 
@@ -140,6 +141,7 @@ func (a *Auth) RegisterClient(clientName string, redirectURIs []string) *OAuthCl
 		ClientSecret: clientSecret,
 		RedirectURIs: redirectURIs,
 		ClientName:   clientName,
+		AuthMethod:   authMethod,
 		CreatedAt:    time.Now(),
 	}
 	a.clients.Store(clientID, client)
@@ -156,12 +158,25 @@ func (a *Auth) GetClient(clientID string) *OAuthClient {
 }
 
 // ValidateClient 校验 client_id + client_secret
+// 如果客户端注册为 "none" 认证方式，跳过 secret 校验
 func (a *Auth) ValidateClient(clientID, clientSecret string) bool {
 	client := a.GetClient(clientID)
 	if client == nil {
 		return false
 	}
+	if client.AuthMethod == "none" {
+		return true
+	}
 	return client.ClientSecret == clientSecret
+}
+
+// GetClientIDByAuthCode 通过授权码反查 client_id（用于 "none" 认证方式的 token 交换）
+func (a *Auth) GetClientIDByAuthCode(code string) string {
+	val, ok := a.authCodes.Load(code)
+	if !ok {
+		return ""
+	}
+	return val.(*AuthorizationCode).ClientID
 }
 
 // --- OAuth Authorization Code ---

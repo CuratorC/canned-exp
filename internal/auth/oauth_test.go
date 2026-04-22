@@ -16,7 +16,7 @@ func TestAuth_RegisterClient(t *testing.T) {
 	})
 
 	t.Run("注册客户端返回 client_id 和 client_secret", func(t *testing.T) {
-		client := authSvc.RegisterClient("Claude Code", []string{"http://localhost:8080/callback"})
+		client := authSvc.RegisterClient("Claude Code", []string{"http://localhost:8080/callback"}, "client_secret_post")
 		if client.ClientID == "" {
 			t.Error("client_id 不应为空")
 		}
@@ -32,8 +32,8 @@ func TestAuth_RegisterClient(t *testing.T) {
 	})
 
 	t.Run("同一个 client_name 多次注册返回不同 client_id", func(t *testing.T) {
-		c1 := authSvc.RegisterClient("test-app", []string{"http://localhost/a"})
-		c2 := authSvc.RegisterClient("test-app", []string{"http://localhost/a"})
+		c1 := authSvc.RegisterClient("test-app", []string{"http://localhost/a"}, "client_secret_post")
+		c2 := authSvc.RegisterClient("test-app", []string{"http://localhost/a"}, "client_secret_post")
 		if c1.ClientID == c2.ClientID {
 			t.Error("重复注册应返回不同的 client_id")
 		}
@@ -47,7 +47,7 @@ func TestAuth_GetClient(t *testing.T) {
 	})
 
 	t.Run("存在的 client_id 返回客户端", func(t *testing.T) {
-		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"}, "client_secret_post")
 		got := authSvc.GetClient(client.ClientID)
 		if got == nil {
 			t.Fatal("应找到已注册的客户端")
@@ -71,14 +71,14 @@ func TestAuth_ValidateClient(t *testing.T) {
 	})
 
 	t.Run("正确的 client_id + client_secret 通过", func(t *testing.T) {
-		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"}, "client_secret_post")
 		if !authSvc.ValidateClient(client.ClientID, client.ClientSecret) {
 			t.Error("正确的凭据应通过校验")
 		}
 	})
 
 	t.Run("错误的 client_secret 失败", func(t *testing.T) {
-		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"}, "client_secret_post")
 		if authSvc.ValidateClient(client.ClientID, "wrong-secret") {
 			t.Error("错误的 client_secret 不应通过")
 		}
@@ -100,7 +100,7 @@ func TestAuth_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("创建并交换授权码成功", func(t *testing.T) {
-		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("test", []string{"http://localhost/cb"}, "client_secret_post")
 		code := authSvc.CreateAuthorizationCode(client.ClientID, "http://localhost/cb", "", "oauth:svc")
 
 		cid, redirectURI, _, service, err := authSvc.ExchangeAuthorizationCode(code, client.ClientID, "")
@@ -119,7 +119,7 @@ func TestAuth_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("授权码只能使用一次（重放失败）", func(t *testing.T) {
-		client := authSvc.RegisterClient("replay-test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("replay-test", []string{"http://localhost/cb"}, "client_secret_post")
 		code := authSvc.CreateAuthorizationCode(client.ClientID, "http://localhost/cb", "", "svc")
 
 		_, _, _, _, err := authSvc.ExchangeAuthorizationCode(code, client.ClientID, "")
@@ -141,7 +141,7 @@ func TestAuth_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("client_id 不匹配返回 ErrInvalidClient", func(t *testing.T) {
-		client := authSvc.RegisterClient("mismatch-test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("mismatch-test", []string{"http://localhost/cb"}, "client_secret_post")
 		code := authSvc.CreateAuthorizationCode(client.ClientID, "http://localhost/cb", "", "svc")
 
 		_, _, _, _, err := authSvc.ExchangeAuthorizationCode(code, "wrong-client-id", "")
@@ -151,7 +151,7 @@ func TestAuth_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("PKCE 校验：正确的 code_verifier 通过", func(t *testing.T) {
-		client := authSvc.RegisterClient("pkce-test", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("pkce-test", []string{"http://localhost/cb"}, "client_secret_post")
 
 		codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 		h := sha256.Sum256([]byte(codeVerifier))
@@ -166,7 +166,7 @@ func TestAuth_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("PKCE 校验：错误的 code_verifier 失败", func(t *testing.T) {
-		client := authSvc.RegisterClient("pkce-fail", []string{"http://localhost/cb"})
+		client := authSvc.RegisterClient("pkce-fail", []string{"http://localhost/cb"}, "client_secret_post")
 
 		codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 		h := sha256.Sum256([]byte(codeVerifier))

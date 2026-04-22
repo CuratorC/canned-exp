@@ -2,10 +2,12 @@ package controller
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"canned-exp/internal/auth"
@@ -28,27 +30,29 @@ func NewOAuthController(authSvc *auth.Auth, baseURL string) *OAuthController {
 // --- RFC 9728: Protected Resource Metadata ---
 
 func (ctrl *OAuthController) ProtectedResourceMetadata(c *gin.Context) {
+	base := requestBaseURL(c, ctrl.baseURL)
 	response.OAuthJSON(c, http.StatusOK, gin.H{
-		"authorization_servers":    []string{ctrl.baseURL},
-		"resource":                 ctrl.baseURL,
+		"authorization_servers":    []string{base},
+		"resource":                 base,
 		"scopes_supported":         []string{"mcp"},
 		"bearer_methods_supported": []string{"header"},
-		"resource_documentation":   ctrl.baseURL + "/api/auth/guide",
+		"resource_documentation":   base + "/api/auth/guide",
 	})
 }
 
 // --- RFC 8414: Authorization Server Metadata ---
 
 func (ctrl *OAuthController) AuthorizationServerMetadata(c *gin.Context) {
+	base := requestBaseURL(c, ctrl.baseURL)
 	response.OAuthJSON(c, http.StatusOK, gin.H{
-		"issuer":                                ctrl.baseURL,
-		"authorization_endpoint":                ctrl.baseURL + "/oauth/authorize",
-		"token_endpoint":                        ctrl.baseURL + "/oauth/token",
-		"registration_endpoint":                 ctrl.baseURL + "/oauth/register",
+		"issuer":                                base,
+		"authorization_endpoint":                base + "/oauth/authorize",
+		"token_endpoint":                        base + "/oauth/token",
+		"registration_endpoint":                 base + "/oauth/register",
 		"response_types_supported":              []string{"code"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"grant_types_supported":                 []string{"authorization_code"},
-		"token_endpoint_auth_methods_supported": []string{"client_secret_post"},
+		"token_endpoint_auth_methods_supported": []string{"client_secret_post", "client_secret_basic", "none"},
 		"scopes_supported":                      []string{"mcp"},
 	})
 }
@@ -56,8 +60,9 @@ func (ctrl *OAuthController) AuthorizationServerMetadata(c *gin.Context) {
 // --- RFC 7591: Dynamic Client Registration ---
 
 type registerRequest struct {
-	ClientName   string   `json:"client_name" binding:"required"`
-	RedirectURIs []string `json:"redirect_uris" binding:"required,min=1"`
+	ClientName              string   `json:"client_name" binding:"required"`
+	RedirectURIs            []string `json:"redirect_uris" binding:"required,min=1"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
 }
 
 func (ctrl *OAuthController) Register(c *gin.Context) {
@@ -67,13 +72,23 @@ func (ctrl *OAuthController) Register(c *gin.Context) {
 		return
 	}
 
-	client := ctrl.authSvc.RegisterClient(req.ClientName, req.RedirectURIs)
-	response.OAuthJSON(c, http.StatusCreated, gin.H{
-		"client_id":     client.ClientID,
-		"client_secret": client.ClientSecret,
-		"client_name":   client.ClientName,
-		"redirect_uris": client.RedirectURIs,
-	})
+	authMethod := req.TokenEndpointAuthMethod
+	if authMethod == "" {
+		authMethod = "client_secret_post"
+	}
+
+	client := ctrl.authSvc.RegisterClient(req.ClientName, req.RedirectURIs, authMethod)
+
+	resp := gin.H{
+		"client_id":                  client.ClientID,
+		"client_name":                client.ClientName,
+		"redirect_uris":              client.RedirectURIs,
+		"token_endpoint_auth_method": client.AuthMethod,
+	}
+	if client.AuthMethod != "none" {
+		resp["client_secret"] = client.ClientSecret
+	}
+	response.OAuthJSON(c, http.StatusCreated, resp)
 }
 
 // --- Authorization Endpoint ---
@@ -155,8 +170,8 @@ func (ctrl *OAuthController) AuthorizePost(c *gin.Context) {
 type tokenRequest struct {
 	GrantType    string `form:"grant_type" binding:"required"`
 	Code         string `form:"code" binding:"required"`
-	ClientID     string `form:"client_id" binding:"required"`
-	ClientSecret string `form:"client_secret" binding:"required"`
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
 	RedirectURI  string `form:"redirect_uri"`
 }
@@ -170,6 +185,24 @@ func (ctrl *OAuthController) Token(c *gin.Context) {
 
 	if req.GrantType != "authorization_code" {
 		response.OAuthError(c, http.StatusBadRequest, "unsupported_grant_type")
+		return
+	}
+
+	// Fallback 1: 从 Authorization: Basic 头提取 client_id/client_secret
+	if req.ClientID == "" {
+		if cid, csecret, ok := parseBasicAuth(c); ok {
+			req.ClientID = cid
+			req.ClientSecret = csecret
+		}
+	}
+
+	// Fallback 2: "none" 认证方式的公共客户端不发送 client_id，从 auth code 反查
+	if req.ClientID == "" {
+		req.ClientID = ctrl.authSvc.GetClientIDByAuthCode(req.Code)
+	}
+
+	if req.ClientID == "" {
+		response.OAuthError(c, http.StatusUnauthorized, "invalid_client")
 		return
 	}
 
@@ -203,6 +236,18 @@ func (ctrl *OAuthController) Token(c *gin.Context) {
 
 // --- helpers ---
 
+// requestBaseURL 从请求中动态推断 baseURL，确保 metadata 中的 URL 与客户端实际连接地址一致
+func requestBaseURL(c *gin.Context, fallback string) string {
+	scheme := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	if host := c.Request.Host; host != "" {
+		return scheme + "://" + host
+	}
+	return fallback
+}
+
 func containsURI(uris []string, target string) bool {
 	for _, u := range uris {
 		if u == target {
@@ -210,6 +255,23 @@ func containsURI(uris []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// parseBasicAuth 从 Authorization: Basic base64(client_id:client_secret) 头提取凭据
+func parseBasicAuth(c *gin.Context) (string, string, bool) {
+	header := c.GetHeader("Authorization")
+	if !strings.HasPrefix(header, "Basic ") {
+		return "", "", false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(header, "Basic "))
+	if err != nil {
+		return "", "", false
+	}
+	parts := strings.SplitN(string(decoded), ":", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func renderAuthorizePage(clientID, redirectURI, codeChallenge, state, errMsg string) string {
