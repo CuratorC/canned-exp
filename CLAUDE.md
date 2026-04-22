@@ -74,8 +74,7 @@ Client (Claude Code / Hook / curl)
   └─ Auth Middleware
        ├─ /api/auth/login, /api/auth/revoke → 免认证
        ├─ 127.0.0.1 (loopback)              → 免认证
-       ├─ Session Token                     → 全权限
-       └─ API Key                           → 只读 /api/search
+       └─ Session Token                     → 全权限
 ```
 
 ### 认证配置
@@ -83,7 +82,6 @@ Client (Claude Code / Hook / curl)
 | 环境变量 | 描述 |
 |----------|------|
 | `EXPERIENCE_TOTP_SECRET` | TOTP 共享密钥（base32，用 Google Authenticator 扫描） |
-| `EXPERIENCE_API_KEY` | 静态 API Key（用于 Hook 脚本只读访问） |
 | `EXPERIENCE_SESSION_TTL` | Session 有效期（默认 24h） |
 | `EXPERIENCE_MCP_PORT` | MCP Server 端口（默认 3000） |
 

@@ -62,7 +62,6 @@ canned-exp 是一个开源的个人经验库，通过 MCP（Model Context Protoc
 
 **分层权限**：
 - 本地回环地址免认证——开发调试零摩擦
-- API Key 只读访问——用于 Hook 脚本等自动化场景，只能检索，不能修改
 - Session Token 全权限——通过 TOTP 登录获取，支持完整的读写操作
 
 **公网安全**：所有端点（MCP SSE + REST）在公网环境下均需认证，未认证请求返回 401。服务重启自动清空所有 session，强制重新认证。
