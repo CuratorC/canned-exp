@@ -13,7 +13,6 @@
       "Bash(sed -i '/Name:        \"get_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    true,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
       "Bash(sed -i '/Name:        \"update_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    false,\\\\n\\\\t\\\\t\\\\tDestructive: false,' internal/experience/mcp/server.go)",
       "Bash(sed -i '/Name:        \"delete_experience\",/a\\\\\\\\t\\\\t\\\\tReadOnly:    false,\\\\n\\\\t\\\\t\\\\tDestructive: true,' internal/experience/mcp/server.go)",
-      "Bash(EXPERIENCE_API_KEY=\"6395601ed4e2f61625b02d349f8c3a49fccc6999ed562b6f3bac177ad8ca154c\" go run ./main.go serve)",
       "Read(//tmp/**)",
       "Bash(fuser -k 3000/tcp)",
       "Bash(go run *)",
@@ -36,18 +35,6 @@
             "type": "command",
             "command": "bash /home/curatorc/GolandProjects/canned-exp/.claude/hooks/go-tab-indent.sh",
             "timeout": 3
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /home/curatorc/GolandProjects/canned-exp/.claude/hooks/recall-experience.sh",
-            "timeout": 5
           }
         ]
       }
