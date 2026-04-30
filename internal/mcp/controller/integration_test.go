@@ -283,6 +283,7 @@ func TestMCPIntegration_ToolCall(t *testing.T) {
 		sendRequest(t, stdinW, 10, "tools/call", map[string]interface{}{
 			"name": "save_experience",
 			"arguments": map[string]interface{}{
+				"agent_id": float64(0),
 				"content": "Go 测试文件应与源文件同目录",
 				"tags": []interface{}{"go", "testing"},
 				"title":   "Go 测试组织",
@@ -304,6 +305,7 @@ func TestMCPIntegration_ToolCall(t *testing.T) {
 		sendRequest(t, stdinW, 11, "tools/call", map[string]interface{}{
 			"name": "search_experiences",
 			"arguments": map[string]interface{}{
+				"agent_id": float64(0),
 				"query": "Go 测试",
 			},
 		})
@@ -355,6 +357,7 @@ func TestMCPIntegration_ToolCall(t *testing.T) {
 		sendRequest(t, stdinW, 20, "tools/call", map[string]interface{}{
 			"name": "save_experience",
 			"arguments": map[string]interface{}{
+				"agent_id": float64(0),
 				"content": "使用 context.WithTimeout 控制请求超时",
 				"tags": []interface{}{"go", "context"},
 			},
@@ -368,6 +371,7 @@ func TestMCPIntegration_ToolCall(t *testing.T) {
 		sendRequest(t, stdinW, 21, "tools/call", map[string]interface{}{
 			"name": "save_experience",
 			"arguments": map[string]interface{}{
+				"agent_id": float64(0),
 				"content": "使用 context.WithTimeout 控制请求超时",
 				"tags": []interface{}{"go", "context"},
 			},

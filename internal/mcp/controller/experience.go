@@ -55,13 +55,15 @@ func (s *Server) registerTools() {
 
 标签规范：3-7 个，优先复合标签（如 go-context、mcp-sse、sqlite-vector），
 包含领域（go/python/docker）+ 问题模式（error-handling/concurrency/deployment）。
-避免过于宽泛的标签如 bug、fix、tip。`,
+避免过于宽泛的标签如 bug、fix、tip。
+
+agent_id 决策：通用编程知识传 0（全局可见）；你的工作流/环境特有的经验传你的 agent_id（仅你可见）。`,
 			Params: []ParamDef{
 				{Name: "content", Type: "string", Required: true, Description: "经验的完整叙述内容"},
 				{Name: "title", Type: "string", Required: false, Description: "经验的主题摘要（可选）"},
 				{Name: "tags", Type: "array", Required: true, Description: "分类标签（必填，用于归类和检索）"},
 				{Name: "source", Type: "string", Required: false, Description: "来源 Agent 或应用标识（可选）"},
-				{Name: "agent_id", Type: "number", Required: false, Description: "所属 Agent ID（可选，用于多 Agent 隔离）"},
+				{Name: "agent_id", Type: "number", Required: true, Description: "所属 Agent ID（必填）。如果是通用知识传 0；如果是你的工作流特有经验传你的 agent_id。"},
 				{Name: "force", Type: "boolean", Required: false, Description: "发现相似经验时是否强制保存（默认 false）"},
 			},
 		},
@@ -80,7 +82,7 @@ func (s *Server) registerTools() {
 检索成本极低，宁多搜不少搜。一次遗漏的搜索可能导致重复犯错。`,
 			Params: []ParamDef{
 				{Name: "query", Type: "string", Required: true, Description: "搜索查询文本（自然语言描述问题）"},
-				{Name: "agent_id", Type: "number", Required: false, Description: "按 Agent ID 过滤（可选）"},
+				{Name: "agent_id", Type: "number", Required: true, Description: "必填。传你的 agent_id 搜索你的专属经验 + 全局经验；传 0 只搜索全局经验。"},
 				{Name: "top_k", Type: "number", Required: false, Description: "返回结果数量上限（默认 5）"},
 			},
 		},
@@ -122,7 +124,7 @@ func (s *Server) registerTools() {
 			Params: []ParamDef{
 				{Name: "page", Type: "number", Required: false, Description: "页码（默认 1）"},
 				{Name: "pageSize", Type: "number", Required: false, Description: "每页数量（默认 20）"},
-				{Name: "agent_id", Type: "number", Required: false, Description: "按 Agent ID 过滤（可选）"},
+				{Name: "agent_id", Type: "number", Required: true, Description: "必填。传你的 agent_id 列出你的专属经验 + 全局经验；传 0 只列出全局经验。"},
 			},
 		},
 		{
@@ -409,9 +411,11 @@ func (s *Server) handleSave(ctx context.Context, params map[string]interface{}) 
 	if source, ok := params["source"].(string); ok {
 		exp.Source = source
 	}
-	if agentID := toUint(params["agent_id"]); agentID != 0 {
-		exp.AgentID = agentID
+	agentID, ok := toUintOk(params["agent_id"])
+	if !ok {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
 	}
+	exp.AgentID = agentID
 
 	force := false
 	if f, ok := params["force"].(bool); ok {
@@ -445,7 +449,10 @@ func (s *Server) handleSearch(ctx context.Context, params map[string]interface{}
 		topK = toInt(topKVal)
 	}
 
-	agentID := toUint(params["agent_id"])
+	agentID, ok := toUintOk(params["agent_id"])
+	if !ok {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
 
 	results, err := s.svc.Search(ctx, query, agentID, topK)
 	if err != nil {
@@ -528,7 +535,10 @@ func (s *Server) handleList(ctx context.Context, params map[string]interface{}) 
 		pageSize = toInt(pageSizeVal)
 	}
 
-	agentID := toUint(params["agent_id"])
+	agentID, ok := toUintOk(params["agent_id"])
+	if !ok {
+		return CallToolResult{IsError: true, Content: "parameter 'agent_id' is required"}, nil
+	}
 
 	experiences, total, err := s.svc.List(ctx, agentID, page, pageSize)
 	if err != nil {
@@ -1034,5 +1044,25 @@ func toUint(v interface{}) uint {
 		return uint(n)
 	default:
 		return 0
+	}
+}
+
+func toUintOk(v interface{}) (uint, bool) {
+	if v == nil {
+		return 0, false
+	}
+	switch val := v.(type) {
+	case float64:
+		return uint(val), true
+	case int:
+		return uint(val), true
+	case string:
+		n, err := strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return uint(n), true
+	default:
+		return 0, false
 	}
 }

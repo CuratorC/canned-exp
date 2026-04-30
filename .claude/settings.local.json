@@ -17,7 +17,10 @@
       "Bash(fuser -k 3000/tcp)",
       "Bash(go run *)",
       "Bash(sed -i -e 's/\"agent_id\": \"agent-001\"/\"agent_id\": float64\\(1\\)/g' -e 's/\"agent_id\": \"agent-A\"/\"agent_id\": float64\\(1\\)/g' -e 's/\"agent_id\": \"agent-B\"/\"agent_id\": float64\\(2\\)/g' -e 's/\"agent_id\": \"agent-X\"/\"agent_id\": float64\\(99\\)/g' internal/mcp/controller/experience_test.go)",
-      "Bash(sed -i -e 's/contains\\(got.Content, \"agent-001\"\\)/contains\\(got.Content, `\"agent_id\":1`\\)/g' -e 's/经验应包含 agent_id=agent-001/经验应包含 agent_id=1/g' internal/mcp/controller/experience_test.go)"
+      "Bash(sed -i -e 's/contains\\(got.Content, \"agent-001\"\\)/contains\\(got.Content, `\"agent_id\":1`\\)/g' -e 's/经验应包含 agent_id=agent-001/经验应包含 agent_id=1/g' internal/mcp/controller/experience_test.go)",
+      "Bash(curl -s https://code.claude.com/docs/en/claude_code_docs_map.md)",
+      "Bash(curl -s https://code.claude.com/docs/en/third-party-integrations.md)",
+      "Bash(curl -s https://code.claude.com/docs/en/llm-gateway.md)"
     ],
     "additionalDirectories": [
       "/home/curatorc/GolandProjects/canned-exp/.claude",

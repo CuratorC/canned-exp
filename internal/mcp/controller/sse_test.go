@@ -142,6 +142,7 @@ func TestSSEIntegration_ToolCall(t *testing.T) {
 			Params: mcpsdk.CallToolParams{
 				Name: "save_experience",
 				Arguments: map[string]interface{}{
+					"agent_id": float64(0),
 					"content": "Go 项目的 vendor 目录应加入 .gitignore",
 					"title":   "Go vendor 管理",
 					"tags":    []interface{}{"go", "git"},
@@ -159,6 +160,7 @@ func TestSSEIntegration_ToolCall(t *testing.T) {
 			Params: mcpsdk.CallToolParams{
 				Name: "search_experiences",
 				Arguments: map[string]interface{}{
+					"agent_id": float64(0),
 					"query": "Go 项目",
 				},
 			},
@@ -177,6 +179,7 @@ func TestSSEIntegration_ToolCall(t *testing.T) {
 			Params: mcpsdk.CallToolParams{
 				Name: "save_experience",
 				Arguments: map[string]interface{}{
+					"agent_id": float64(0),
 					"content": "使用 sync.Once 保证单例初始化只执行一次",
 					"tags":    []interface{}{"go", "concurrency"},
 				},
@@ -188,6 +191,7 @@ func TestSSEIntegration_ToolCall(t *testing.T) {
 			Params: mcpsdk.CallToolParams{
 				Name: "save_experience",
 				Arguments: map[string]interface{}{
+					"agent_id": float64(0),
 					"content": "使用 sync.Once 保证单例初始化只执行一次",
 					"tags":    []interface{}{"go", "concurrency"},
 				},

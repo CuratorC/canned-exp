@@ -363,7 +363,7 @@ func TestRepository_AgentID(t *testing.T) {
 		}
 	})
 
-	t.Run("空 agent_id 搜索返回全部", func(t *testing.T) {
+	t.Run("agent_id=0 搜索只返回全局经验", func(t *testing.T) {
 		repo := testRepoSetup(t)
 		repo.Save(ctx, &model.Experience{AgentID: 0, Content: "全局经验"})
 		repo.Save(ctx, &model.Experience{AgentID: 1, Content: "AgentA 经验"})
@@ -373,8 +373,10 @@ func TestRepository_AgentID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Search() error: %v", err)
 		}
-		if len(results) < 3 {
-			t.Errorf("空 agent_id 应返回全部经验，got %d 条", len(results))
+		for _, r := range results {
+			if r.Experience.AgentID != 0 {
+				t.Errorf("agent_id=0 搜索应只返回全局经验，但包含 AgentID=%d", r.Experience.AgentID)
+			}
 		}
 	})
 
@@ -406,7 +408,7 @@ func TestRepository_AgentID(t *testing.T) {
 			}
 		})
 
-	t.Run("空 agent_id 列表返回全部", func(t *testing.T) {
+	t.Run("agent_id=0 列表只返回全局经验", func(t *testing.T) {
 		repo := testRepoSetup(t)
 		repo.Save(ctx, &model.Experience{AgentID: 0, Content: "全局"})
 		repo.Save(ctx, &model.Experience{AgentID: 1, Content: "A"})
@@ -415,11 +417,11 @@ func TestRepository_AgentID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("List() error: %v", err)
 		}
-		if total < 2 {
-			t.Errorf("空 agent_id 应返回全部，got total=%d", total)
+		if total != 1 {
+			t.Errorf("agent_id=0 应只返回全局经验 total=1，got total=%d", total)
 		}
-		if len(results) < 2 {
-			t.Errorf("空 agent_id 应返回全部，got %d 条", len(results))
+		if len(results) != 1 {
+			t.Errorf("agent_id=0 应只返回 1 条，got %d 条", len(results))
 		}
 	})
 }

@@ -246,6 +246,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 			"content": "Go 项目的测试文件应放在和源文件相同的目录",
 			"title":   "Go 测试文件组织",
 			"tags":    []interface{}{"go", "testing"},
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -262,6 +263,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 		result, err := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"title": "只有标题",
 			"tags":  []interface{}{"test"},
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -274,6 +276,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 	t.Run("save_experience 缺少必填参数 tags 时返回错误", func(t *testing.T) {
 		result, err := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"content": "没有标签的经验",
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -287,6 +290,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 		result, err := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"content": "空标签的经验",
 			"tags":    []interface{}{},
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -301,10 +305,12 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 			"content": "使用 SQLite 做本地存储时，注意单连接模式避免并发锁",
 			"title":   "SQLite 使用经验",
 			"tags":    []interface{}{"sqlite", "storage"},
+			"agent_id": float64(0),
 		})
 
 		result, err := server.CallTool(context.Background(), "search_experiences", map[string]interface{}{
 			"query": "SQLite 怎么用",
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -317,6 +323,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 	t.Run("search_experiences 缺少 query 时返回错误", func(t *testing.T) {
 		result, err := server.CallTool(context.Background(), "search_experiences", map[string]interface{}{
 			"top_k": 5,
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -328,8 +335,9 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 
 	t.Run("get_experience 正常调用", func(t *testing.T) {
 		saveResult, _ := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
-			"content": "用于测试 Get 的经验",
-			"tags":    []interface{}{"test"},
+			"content":  "用于测试 Get 的经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(0),
 		})
 		id := saveResult.Content
 
@@ -358,8 +366,9 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 
 	t.Run("delete_experience 正常调用", func(t *testing.T) {
 		saveResult, _ := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
-			"content": "即将被删除的经验",
-			"tags":    []interface{}{"test"},
+			"content":  "即将被删除的经验",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(0),
 		})
 		id := saveResult.Content
 
@@ -378,6 +387,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 		result, err := server.CallTool(context.Background(), "list_experiences", map[string]interface{}{
 			"page":     1,
 			"pageSize": 10,
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -387,27 +397,29 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 		}
 	})
 
-	t.Run("list_experiences 无参数时使用默认值", func(t *testing.T) {
-		result, err := server.CallTool(context.Background(), "list_experiences", map[string]interface{}{})
-		if err != nil {
-			t.Fatalf("CallTool() error: %v", err)
-		}
-		if result.IsError {
-			t.Errorf("无参数应使用默认分页，不应报错: %s", result.Content)
-		}
-	})
+		t.Run("list_experiences 缺少 agent_id 时返回错误", func(t *testing.T) {
+			result, err := server.CallTool(context.Background(), "list_experiences", map[string]interface{}{})
+			if err != nil {
+				t.Fatalf("CallTool() error: %v", err)
+			}
+			if !result.IsError {
+				t.Error("缺少 agent_id 应返回错误")
+			}
+		})
 
 	t.Run("save_experience 发现相似内容返回警告", func(t *testing.T) {
 		// 先保存一条
 		server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"content": "使用 errors.Is 和 errors.As 做错误比较",
 			"tags":    []interface{}{"go", "error"},
+			"agent_id": float64(0),
 		})
 
 		// 保存完全相同的内容
 		result, err := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"content": "使用 errors.Is 和 errors.As 做错误比较",
 			"tags":    []interface{}{"go", "error"},
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -426,6 +438,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 		server.CallTool(context.Background(), "save_experience", map[string]interface{}{
 			"content": "使用 sync.Pool 复用对象减少 GC 压力",
 			"tags":    []interface{}{"go", "performance"},
+			"agent_id": float64(0),
 		})
 
 		// 保存相同内容，带 force=true
@@ -433,6 +446,7 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 			"content": "使用 sync.Pool 复用对象减少 GC 压力",
 			"tags":    []interface{}{"go", "performance"},
 			"force":   true,
+			"agent_id": float64(0),
 		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
@@ -454,9 +468,10 @@ func TestMCPServer_ToolCalls(t *testing.T) {
 
 	t.Run("update_experience 正常调用", func(t *testing.T) {
 		saveResult, _ := server.CallTool(context.Background(), "save_experience", map[string]interface{}{
-			"content": "原始经验内容",
-			"title":   "原始标题",
-			"tags":    []interface{}{"test"},
+			"content":  "原始经验内容",
+			"title":    "原始标题",
+			"tags":     []interface{}{"test"},
+			"agent_id": float64(0),
 		})
 		id := saveResult.Content
 
@@ -548,6 +563,7 @@ func TestMCPServer_AgentTools(t *testing.T) {
 		s.CallTool(ctx, "save_experience", map[string]interface{}{
 			"content": "全局经验",
 			"tags":    []interface{}{"test"},
+			"agent_id": float64(0),
 		})
 
 		result, err := s.CallTool(ctx, "list_experiences", map[string]interface{}{

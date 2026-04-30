@@ -119,9 +119,15 @@ func (r *ExperienceGormRepo) Search(ctx context.Context, query string, agentID u
 		if err != nil {
 			continue
 		}
-		// agentID 非 0 时：只返回属于该 agent 或全局（agent_id=0）的经验
-		if agentID != 0 && exp.AgentID != agentID && exp.AgentID != 0 {
-			continue
+		// agentID=0 时：只返回全局经验；agentID 非 0 时：返回属于该 agent 或全局经验
+		if agentID == 0 {
+			if exp.AgentID != 0 {
+				continue
+			}
+		} else {
+			if exp.AgentID != agentID && exp.AgentID != 0 {
+				continue
+			}
 		}
 		results = append(results, SearchResult{
 			Experience: *exp,
@@ -137,7 +143,9 @@ func (r *ExperienceGormRepo) Search(ctx context.Context, query string, agentID u
 
 func (r *ExperienceGormRepo) List(ctx context.Context, agentID uint, page, pageSize int) ([]model.Experience, int, error) {
 	db := r.db.WithContext(ctx).Model(&model.Experience{})
-	if agentID != 0 {
+	if agentID == 0 {
+		db = db.Where("agent_id = 0")
+	} else {
 		db = db.Where("agent_id = ? OR agent_id = 0", agentID)
 	}
 
