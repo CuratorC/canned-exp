@@ -6,6 +6,7 @@ import (
 	mcpgw "canned-exp/internal/mcp"
 	httpctrl "canned-exp/internal/http/controller"
 	middlewares "canned-exp/internal/http/middleware"
+	"canned-exp/internal/proxy"
 	"canned-exp/internal/renderer"
 
 	"github.com/gin-gonic/gin"
@@ -50,6 +51,11 @@ func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 	// MCP Streamable HTTP（供 Hermes 等新客户端使用）
 	streamableServer := mcpgw.NewStreamableHTTPServer("canned-exp", "1.0.0", expctrl.NewServer(application.ExperienceService, application.AgentService, application.PersonalityService, application.PersonalityKeyService, application.MemoryService, renderer.NewRegistry()))
 	authGroup.Any("/mcp", gin.WrapH(streamableServer))
+
+	// Anthropic Messages API 代理（可选，通过 PROXY_ENABLED 开启）
+	if application.ProxyEnabled {
+		authGroup.POST("/v1/messages", proxy.MessagesHandler(application.ProxyService))
+	}
 
 	// v1 Web API 路由组
 	v1 := r.Group("/v1")

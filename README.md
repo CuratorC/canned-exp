@@ -5,6 +5,7 @@
 ## 特性
 
 - **MCP 协议**：支持 SSE + Streamable HTTP 双传输，兼容 Claude Code、Hermes 等主流 Agent
+- **API 代理**：Anthropic Messages API → OpenAI Chat Completions API 协议转换，支持流式 SSE
 - **经验库（Experience）**：向量语义检索的知识片段，去重检测
 - **人格管理（Personality）**：EAV 模式存储，按框架渲染为配置文件（OpenClaw、Claude Code 等）
 - **记忆系统（Memory）**：按路径/日期组织的长期内容，支持路径前缀过滤和日期范围查询
@@ -45,8 +46,8 @@ EMBEDDING_MODEL=embedding-3
 EMBEDDING_DIMENSIONS=2048
 
 # 认证（可选）
-EXPERIENCE_TOTP_SECRET=          # TOTP 共享密钥（base32）
-EXPERIENCE_SESSION_TTL=24h       # Session 有效期
+AUTH_TOTP_SECRET=          # TOTP 共享密钥（base32）
+AUTH_SESSION_TTL=24h       # Session 有效期
 ```
 
 ### 运行
@@ -74,6 +75,28 @@ EXPERIENCE_SESSION_TTL=24h       # Session 有效期
 }
 ```
 
+### Claude Code（API 代理模式）
+
+将 Claude Code 指向 canned-exp 的代理端点，通过 OpenAI 兼容后端提供模型能力：
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:3000
+export ANTHROPIC_API_KEY=unused   # loopback 免认证，任意值即可
+```
+
+或在 `~/.claude/settings.json` 中配置：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:3000",
+    "ANTHROPIC_AUTH_TOKEN": "unused"
+  }
+}
+```
+
+代理将 Anthropic Messages API 请求转换为 OpenAI Chat Completions API 格式转发给后端，并实时转换流式 SSE 响应。模型映射通过 `PROXY_MODEL_MAP` 配置。
+
 ### Hermes / 其他 Agent（Streamable HTTP 传输）
 
 配置 MCP 连接地址为：`http://localhost:3100/mcp`
@@ -89,6 +112,7 @@ EXPERIENCE_SESSION_TTL=24h       # Session 有效期
 | `/sse` | GET | Token / 本地 | MCP SSE 连接 |
 | `/message` | POST | Token / 本地 | MCP SSE 消息 |
 | `/mcp` | POST | Token / 本地 | MCP Streamable HTTP |
+| `/v1/messages` | POST | Token / 本地 | Anthropic Messages API 代理 |
 | `/api/search` | POST | Token / 本地 | REST 语义搜索 |
 | `/api/auth/login` | POST | 免认证 | TOTP 登录 |
 | `/api/auth/revoke` | POST | Token | 吊销 session |
@@ -165,8 +189,12 @@ curl -X POST http://localhost:3100/api/auth/login \
 | `EMBEDDING_API_KEY` | （空） | 嵌入 API 密钥 |
 | `EMBEDDING_MODEL` | `embedding-3` | 嵌入模型 |
 | `EMBEDDING_DIMENSIONS` | `2048` | 向量维度 |
-| `EXPERIENCE_TOTP_SECRET` | （空） | TOTP 密钥 |
-| `EXPERIENCE_SESSION_TTL` | `24h` | Session 有效期 |
+| `AUTH_TOTP_SECRET` | （空） | TOTP 密钥 |
+| `AUTH_SESSION_TTL` | `24h` | Session 有效期 |
+| `PROXY_ENABLED` | `false` | 是否启用 API 代理 |
+| `PROXY_BASE_URL` | `https://api.openai.com/v1` | 代理后端 base URL |
+| `PROXY_API_KEY` | （空） | 代理后端 API Key |
+| `PROXY_MODEL_MAP` | （空） | 模型名映射（JSON） |
 
 ## 开发
 

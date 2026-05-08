@@ -71,6 +71,9 @@ func NewApp() (*app.App, error) {
 	// 外部可访问 URL（OAuth metadata 需要）
 	application.BaseURL = config.GetString("experience.mcp_url")
 
+	// 代理服务（可选，通过 PROXY_ENABLED 开启）
+	SetupProxy(application)
+
 	return application, nil
 }
 

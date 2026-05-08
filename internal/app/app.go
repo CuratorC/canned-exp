@@ -5,6 +5,7 @@ package app
 
 import (
 	"canned-exp/internal/auth"
+	"canned-exp/internal/proxy"
 	"canned-exp/internal/service"
 
 	"github.com/CuratorC/gocanned/database"
@@ -21,5 +22,7 @@ type App struct {
 	FrameworkMappingService *service.FrameworkMappingService
 	MemoryService         *service.MemoryService
 	Auth                  *auth.Auth
+	ProxyEnabled          bool
+	ProxyService          *proxy.ProxyService
 	BaseURL               string // 服务器外部可访问的 URL
 }
