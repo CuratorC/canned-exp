@@ -15,6 +15,11 @@ import (
 // RegisterAPIRoutes 注册所有 API 路由（Web + MCP + Auth）
 func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 
+	// 根路径健康检查，避免 HEAD / 产生 404 WARN 日志
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	r.GET("health-check", func(c *gin.Context) {
 		c.JSON(200, gin.H{})
 	})
