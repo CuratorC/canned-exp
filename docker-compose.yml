@@ -1,14 +1,21 @@
 services:
   canned-exp:
     image: canned-exp:latest
-    network_mode: host
+    ports:
+      - "127.0.0.1:${APP_PORT:-3100}:${APP_PORT:-3100}"
     volumes:
       - ./storage:/app/storage
     environment:
-      - APP_PORT=3100
+      - APP_PORT=${APP_PORT:-3100}
       - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
       - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-embedding-3}
       - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-2048}
       - EXPERIENCE_TOTP_SECRET=${EXPERIENCE_TOTP_SECRET}
+      - PROXY_ENABLED=${PROXY_ENABLED:-false}
+      - PROXY_BASE_URL=${PROXY_BASE_URL}
+      - PROXY_API_KEY=${PROXY_API_KEY}
+      - PROXY_MODEL_MAP=${PROXY_MODEL_MAP}
+      - PROXY_DEFAULT_MODEL=${PROXY_DEFAULT_MODEL}
+      - AUTH_TOTP_SECRET=${AUTH_TOTP_SECRET}
     restart: unless-stopped

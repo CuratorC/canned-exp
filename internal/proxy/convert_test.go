@@ -28,7 +28,7 @@ func TestConvertRequest_BasicMessage(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -47,6 +47,47 @@ func TestConvertRequest_BasicMessage(t *testing.T) {
 	}
 }
 
+func TestConvertRequest_MaxTokensCap(t *testing.T) {
+	req := &AnthropicRequest{
+		Model:     "claude-sonnet-4-20250514",
+		MaxTokens: 64000,
+		Messages: []AnthropicMessage{
+			{Role: "user", Content: mustRaw(t, "Hello")},
+		},
+	}
+
+	// maxOutputTokens=32000 应将 64000 截断为 32000
+	result, err := ConvertRequest(req, "test-model", false, 32000)
+	if err != nil {
+		t.Fatalf("ConvertRequest() error: %v", err)
+	}
+	if result.MaxTokens != 32000 {
+		t.Errorf("max_tokens = %d, want 32000 (capped)", result.MaxTokens)
+	}
+
+	// maxOutputTokens=0 不裁剪
+	result2, err := ConvertRequest(req, "test-model", false, 0)
+	if err != nil {
+		t.Fatalf("ConvertRequest() error: %v", err)
+	}
+	if result2.MaxTokens != 64000 {
+		t.Errorf("max_tokens = %d, want 64000 (uncapped)", result2.MaxTokens)
+	}
+
+	// maxOutputTokens 大于请求值，不裁剪
+	smallReq := &AnthropicRequest{
+		MaxTokens: 1000,
+		Messages:  []AnthropicMessage{{Role: "user", Content: mustRaw(t, "hi")}},
+	}
+	result3, err := ConvertRequest(smallReq, "test-model", false, 32000)
+	if err != nil {
+		t.Fatalf("ConvertRequest() error: %v", err)
+	}
+	if result3.MaxTokens != 1000 {
+		t.Errorf("max_tokens = %d, want 1000 (below cap, unchanged)", result3.MaxTokens)
+	}
+}
+
 func TestConvertRequest_SystemPrompt(t *testing.T) {
 	req := &AnthropicRequest{
 		System: mustRaw(t, "You are helpful"),
@@ -55,7 +96,7 @@ func TestConvertRequest_SystemPrompt(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -82,7 +123,7 @@ func TestConvertRequest_SystemPromptArray(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -115,7 +156,7 @@ func TestConvertRequest_ToolDefinitions(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -156,7 +197,7 @@ func TestConvertRequest_ToolChoice(t *testing.T) {
 				Messages:   []AnthropicMessage{{Role: "user", Content: mustRaw(t, "hi")}},
 				ToolChoice: &tt.choice,
 			}
-			result, err := ConvertRequest(req, "test-model", false)
+			result, err := ConvertRequest(req, "test-model", false, 0)
 			if err != nil {
 				t.Fatalf("ConvertRequest() error: %v", err)
 			}
@@ -194,7 +235,7 @@ func TestConvertRequest_AssistantWithToolUse(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -236,7 +277,7 @@ func TestConvertRequest_UserWithToolResult(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -270,7 +311,7 @@ func TestConvertRequest_MixedContentBlocks(t *testing.T) {
 		},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}
@@ -334,7 +375,7 @@ func TestConvertRequest_StopSequences(t *testing.T) {
 		StopSequences: []string{"\n\nHuman:", "---END---"},
 	}
 
-	result, err := ConvertRequest(req, "test-model", false)
+	result, err := ConvertRequest(req, "test-model", false, 0)
 	if err != nil {
 		t.Fatalf("ConvertRequest() error: %v", err)
 	}

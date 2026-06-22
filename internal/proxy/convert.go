@@ -9,7 +9,8 @@ import (
 // ConvertRequest 将 Anthropic Messages API 请求转换为 OpenAI Chat Completions API 请求。
 // targetModel 是经过映射后的后端模型名。
 // isStream 指示是否强制要求流式（当 Claude Code 通过 Accept header 声明流式时使用）。
-func ConvertRequest(req *AnthropicRequest, targetModel string, isStream bool) (*OpenAIRequest, error) {
+// maxOutputTokens 是输出 token 上限（0 表示不裁剪）。
+func ConvertRequest(req *AnthropicRequest, targetModel string, isStream bool, maxOutputTokens int) (*OpenAIRequest, error) {
 	var messages []OpenAIMessage
 
 	// 处理 system 字段
@@ -30,10 +31,16 @@ func ConvertRequest(req *AnthropicRequest, targetModel string, isStream bool) (*
 		messages = append(messages, converted...)
 	}
 
+	// 裁剪 max_tokens：如果配置了上限且请求值超过上限，则截断
+	maxTokens := req.MaxTokens
+	if maxOutputTokens > 0 && maxTokens > maxOutputTokens {
+		maxTokens = maxOutputTokens
+	}
+
 	result := &OpenAIRequest{
 		Model:       targetModel,
 		Messages:    messages,
-		MaxTokens:   req.MaxTokens,
+		MaxTokens:   maxTokens,
 		Stream:      req.Stream || isStream,
 		Temperature: req.Temperature,
 		TopP:        req.TopP,

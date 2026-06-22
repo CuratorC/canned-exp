@@ -14,18 +14,20 @@ import (
 
 // Config 代理配置
 type Config struct {
-	BaseURL      string
-	APIKey       string
-	ModelMap     string // JSON 编码的 map[string]string
-	DefaultModel string // 未映射模型的回退模型名
+	BaseURL        string
+	APIKey         string
+	ModelMap       string // JSON 编码的 map[string]string
+	DefaultModel   string // 未映射模型的回退模型名
+	MaxOutputTokens int   // 输出 token 上限（0 表示不裁剪）
 }
 
 // ProxyService 代理服务
 type ProxyService struct {
-	config       Config
-	modelMap     map[string]string
-	defaultModel string
-	httpClient   *http.Client
+	config          Config
+	modelMap        map[string]string
+	defaultModel    string
+	maxOutputTokens int
+	httpClient      *http.Client
 }
 
 // NewProxyService 创建代理服务实例
@@ -36,9 +38,10 @@ func NewProxyService(cfg Config) *ProxyService {
 	}
 
 	return &ProxyService{
-		config:       cfg,
-		modelMap:     modelMap,
-		defaultModel: cfg.DefaultModel,
+		config:         cfg,
+		modelMap:       modelMap,
+		defaultModel:   cfg.DefaultModel,
+		maxOutputTokens: cfg.MaxOutputTokens,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Minute, // 流式请求需要较长超时
 		},
@@ -78,7 +81,7 @@ func MessagesHandler(svc *ProxyService) gin.HandlerFunc {
 
 		// 3. 转换为 OpenAI 请求
 		targetModel := svc.ModelName(req.Model)
-		openaiReq, err := ConvertRequest(&req, targetModel, isStream)
+		openaiReq, err := ConvertRequest(&req, targetModel, isStream, svc.maxOutputTokens)
 		if err != nil {
 			c.JSON(400, AnthropicError{
 				Type: "error",

@@ -2,6 +2,8 @@ package middlewares
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 
@@ -20,6 +22,31 @@ type responseBodyWriter struct {
 func (r responseBodyWriter) Write(b []byte) (int, error) {
 	r.body.Write(b)
 	return r.ResponseWriter.Write(b)
+}
+
+// truncateBody 截断过长的 body：先尝试 JSON pretty-print，再按完整行截断
+func truncateBody(body []byte, max int) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	display := body
+	// 尝试 pretty-print JSON，让每行是一个完整的 key-value
+	var indented bytes.Buffer
+	if json.Indent(&indented, body, "", "  ") == nil {
+		display = indented.Bytes()
+	}
+
+	if len(display) <= max {
+		return string(display)
+	}
+
+	// 在 max 范围内找到最后一个换行符，按完整行截断
+	cut := bytes.LastIndex(display[:max], []byte("\n"))
+	if cut <= 0 {
+		cut = max
+	}
+	return string(display[:cut]) + fmt.Sprintf("\n... [truncated, total %d bytes]", len(body))
 }
 
 // Logger 记录请求日志
@@ -59,10 +86,10 @@ func Logger() gin.HandlerFunc {
 
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "DELETE" {
 			// 请求的内容
-			logFields = append(logFields, zap.String("Request Body", string(requestBody)))
+			logFields = append(logFields, zap.String("Request Body", truncateBody(requestBody, 512)))
 
 			// 响应的内容
-			logFields = append(logFields, zap.String("Response Body", w.body.String()))
+			logFields = append(logFields, zap.String("Response Body", truncateBody(w.body.Bytes(), 512)))
 		}
 
 		if responseStatus > 400 && responseStatus <= 499 {

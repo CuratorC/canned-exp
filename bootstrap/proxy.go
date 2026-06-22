@@ -16,9 +16,10 @@ func SetupProxy(application *app.App) {
 	}
 
 	application.ProxyService = proxy.NewProxyService(proxy.Config{
-		BaseURL:      config.GetString("proxy.base_url"),
-		APIKey:       config.GetString("proxy.api_key"),
-		ModelMap:     config.GetString("proxy.model_map"),
-		DefaultModel: config.GetString("proxy.default_model"),
+		BaseURL:         config.GetString("proxy.base_url"),
+		APIKey:          config.GetString("proxy.api_key"),
+		ModelMap:        config.GetString("proxy.model_map"),
+		DefaultModel:    config.GetString("proxy.default_model"),
+		MaxOutputTokens: config.GetInt("proxy.max_output_tokens"),
 	})
 }

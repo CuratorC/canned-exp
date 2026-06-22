@@ -2,10 +2,10 @@ package route
 
 import (
 	"canned-exp/internal/app"
-	expctrl "canned-exp/internal/mcp/controller"
-	mcpgw "canned-exp/internal/mcp"
 	httpctrl "canned-exp/internal/http/controller"
 	middlewares "canned-exp/internal/http/middleware"
+	mcpgw "canned-exp/internal/mcp"
+	expctrl "canned-exp/internal/mcp/controller"
 	"canned-exp/internal/proxy"
 	"canned-exp/internal/renderer"
 
@@ -15,8 +15,8 @@ import (
 // RegisterAPIRoutes 注册所有 API 路由（Web + MCP + Auth）
 func RegisterAPIRoutes(r *gin.Engine, application *app.App) {
 
-	// 根路径健康检查，避免 HEAD / 产生 404 WARN 日志
-	r.GET("/", func(c *gin.Context) {
+	// 根路径健康检查，覆盖 GET/HEAD 等方法，避免产生 404 WARN 日志
+	r.Any("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 

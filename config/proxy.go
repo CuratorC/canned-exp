@@ -9,7 +9,8 @@ func init() {
 			"base_url":      config.Env("PROXY_BASE_URL", "https://api.openai.com/v1"),
 			"api_key":       config.Env("PROXY_API_KEY", ""),
 			"model_map":     config.Env("PROXY_MODEL_MAP", ""),
-			"default_model": config.Env("PROXY_DEFAULT_MODEL", ""),
+			"default_model":       config.Env("PROXY_DEFAULT_MODEL", ""),
+			"max_output_tokens":   config.Env("PROXY_MAX_OUTPUT_TOKENS", 0),
 		}
 	})
 }
